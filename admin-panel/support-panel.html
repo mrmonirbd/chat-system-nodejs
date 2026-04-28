@@ -136,18 +136,34 @@
         
         async function verifyTokenAndLoad() {
             try {
-                const res = await fetch(`${API_URL}/auth/verify`, { headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetch(`${API_URL}/auth/verify`, { 
+                    headers: { 'Authorization': `Bearer ${token}` } 
+                });
+                
                 if (res.status === 401) {
                     localStorage.removeItem('supportToken');
                     showLoginModal();
                 } else {
                     const data = await res.json();
                     currentAgent = data.user;
+                    currentSiteId = currentAgent.siteId;
                     document.getElementById('agentName').innerText = currentAgent.name;
+                    
                     initSocket();
                     await loadAgentDetails();
+                    
+                    const lastThreadId = localStorage.getItem('lastThreadId');
+                    if (lastThreadId) {
+                        setTimeout(() => {
+                            console.log('🔄 Restoring thread after reload:', lastThreadId);
+                            selectThread(parseInt(lastThreadId));
+                        }, 1500);
+                    }
                 }
-            } catch (err) { console.error(err); showLoginModal(); }
+            } catch (err) { 
+                console.error(err); 
+                showLoginModal(); 
+            }
         }
         
         async function loadAgentDetails() {
@@ -183,9 +199,7 @@
                 }
             });
             // ========== IMPORTANT: Handle new messages ==========
-           socket.on('new-message', (msg) => {
-             console.log('🔴🔴🔴 SUPPORT PANEL GOT MESSAGE:', msg);
-                
+           socket.on('new-message', (msg) => {                
                 // Prevent duplicate
                 if (displayedMessageIds.has(msg.id)) {
                     console.log('Duplicate ignored:', msg.id);
@@ -319,11 +333,14 @@
                 } else {
                     messages.forEach(msg => {
                         displayedMessageIds.add(msg.id);
+                        // ✅ এখানে সঠিক পজিশন নির্ধারণ হচ্ছে
                         addMessageToChat(msg);
                     });
                 }
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-            } catch (err) { console.error('Load messages error:', err); }
+            } catch (err) { 
+                console.error('Load messages error:', err); 
+            }
         }
         
         function sendMessage() {
@@ -425,6 +442,35 @@
                 sendMessage();
             }
         });
+
+        async function init() {
+            try {
+                const res = await fetch(`${API_URL}/users/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const user = await res.json();
+                currentSiteId = user.siteId;
+                currentAgent = { id: user.id, name: user.name };  // ← এখানে agent সেট হচ্ছে
+                
+                document.getElementById('agentName').innerText = currentAgent.name;
+                
+                connectSocket();
+                await loadAgentDetails();
+                
+                // পেজ রিলোডের পর থ্রেড রিস্টোর
+                const lastThreadId = localStorage.getItem('lastThreadId');
+                if (lastThreadId) {
+                    setTimeout(() => {
+                        selectThread(parseInt(lastThreadId));
+                    }, 1000);
+                }
+                
+            } catch(e) {
+                console.error(e);
+                localStorage.removeItem('supportToken');
+                login();
+            }
+        }
 
         
         

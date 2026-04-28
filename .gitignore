@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Database
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+logs/
+*.log
+log.txt
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+.project
+.classpath
+
+# Build files
+dist/
+build/
+*.tsbuildinfo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# MySQL
+mysql_data/
+*.mysql
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Secrets
+*.pem
+*.key
+*.crt
+.secrets/
+
+# Uploads
+uploads/
+files/
+storage/
+
+# PM2
+.pm2/
