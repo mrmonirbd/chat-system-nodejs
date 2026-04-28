@@ -392,3 +392,41 @@ app.get('/api/sites/:siteId/support-agents', authMiddleware, async (req, res) =>
         res.status(500).json({ error: err.message });
     }
 });
+
+
+// Verify token and get user info
+app.get('/api/auth/verify', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id, {
+            attributes: ['id', 'name', 'email', 'role', 'siteId']
+        });
+        res.json({ user });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get current user info
+app.get('/api/users/me', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id, {
+            attributes: ['id', 'name', 'email', 'role', 'siteId']
+        });
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get site by ID
+app.get('/api/sites/:siteId', authMiddleware, async (req, res) => {
+    try {
+        const site = await Site.findByPk(req.params.siteId, {
+            attributes: ['id', 'name', 'domain', 'apiKey']
+        });
+        if (!site) return res.status(404).json({ error: 'Site not found' });
+        res.json(site);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
