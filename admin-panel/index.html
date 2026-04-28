@@ -262,385 +262,410 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:3000/api';
-        let token = localStorage.getItem('token');
-        
-        // SweetAlert2 Helpers
-        const showError = (message) => {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: message,
-                position: 'top-right',
-                toast: true,
-                timer: 5000,
-                timerProgressBar: true,
-                showConfirmButton: false
-            });
-        };
-        
-        const showSuccess = (title, text = '') => {
-            Swal.fire({
-                icon: 'success',
-                title: title,
-                text: text,
-                position: 'top-right',
-                toast: true,
-                timer: 3000,
-                timerProgressBar: true,
-                showConfirmButton: false
-            });
-        };
-        
-        const showWarning = (message) => {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Warning',
-                text: message,
-                position: 'top-right',
-                toast: true,
-                timer: 4000,
-                timerProgressBar: true,
-                showConfirmButton: false
-            });
-        };
-        
-        // Check authentication
-        if (!token) {
-            // Show beautiful login modal
-            showLoginModal();
-        } else {
-            verifyTokenAndLoad();
-        }
-        
-        function showLoginModal() {
-            Swal.fire({
-                title: 'Admin Login',
-                html: `
-                    <input type="email" id="loginEmail" class="swal2-input" placeholder="Admin Email" value="admin@example.com">
-                    <input type="password" id="loginPassword" class="swal2-input" placeholder="Password" value="admin123">
-                `,
-                allowOutsideClick: false,
-                didOpen: (modal) => {
-                    document.getElementById('loginEmail').focus();
-                },
-                preConfirm: () => {
-                    const email = document.getElementById('loginEmail').value;
-                    const password = document.getElementById('loginPassword').value;
-                    
-                    if (!email || !password) {
-                        Swal.showValidationMessage('Please enter email and password');
-                        return false;
-                    }
-                    return { email, password };
+    const API_URL = 'http://localhost:3000/api';
+    let token = localStorage.getItem('token');
+    
+    // SweetAlert2 Helpers
+    const showError = (message) => {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: message,
+            position: 'top-right',
+            toast: true,
+            timer: 5000,
+            timerProgressBar: true,
+            showConfirmButton: false
+        });
+    };
+    
+    const showSuccess = (title, text = '') => {
+        Swal.fire({
+            icon: 'success',
+            title: title,
+            text: text,
+            position: 'top-right',
+            toast: true,
+            timer: 3000,
+            timerProgressBar: true,
+            showConfirmButton: false
+        });
+    };
+    
+    const showWarning = (message) => {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Warning',
+            text: message,
+            position: 'top-right',
+            toast: true,
+            timer: 4000,
+            timerProgressBar: true,
+            showConfirmButton: false
+        });
+    };
+    
+    // Check authentication
+    if (!token) {
+        showLoginModal();
+    } else {
+        verifyTokenAndLoad();
+    }
+    
+    function showLoginModal() {
+        Swal.fire({
+            title: 'Admin Login',
+            html: `
+                <input type="email" id="loginEmail" class="swal2-input" placeholder="Admin Email" value="admin@example.com">
+                <input type="password" id="loginPassword" class="swal2-input" placeholder="Password" value="admin123">
+            `,
+            allowOutsideClick: false,
+            didOpen: (modal) => {
+                document.getElementById('loginEmail').focus();
+            },
+            preConfirm: () => {
+                const email = document.getElementById('loginEmail').value;
+                const password = document.getElementById('loginPassword').value;
+                
+                if (!email || !password) {
+                    Swal.showValidationMessage('Please enter email and password');
+                    return false;
                 }
-            }).then(result => {
-                if (result.isConfirmed) {
-                    const { email, password } = result.value;
-                    fetch(`${API_URL}/auth/login`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, password })
-                    })
-                    .then(res => res.json())
-                    .then(data => {
-                        if (data.token) {
-                            localStorage.setItem('token', data.token);
-                            localStorage.setItem('adminName', data.user.name);
-                            token = data.token;
-                            document.getElementById('adminName').innerText = data.user.name;
-                            loadDashboard();
-                        } else {
-                            showError('Login failed! Please check your credentials.');
-                            showLoginModal();
-                        }
-                    })
-                    .catch(() => {
-                        showError('Network error! Please try again.');
+                return { email, password };
+            }
+        }).then(result => {
+            if (result.isConfirmed) {
+                const { email, password } = result.value;
+                fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.token) {
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('adminName', data.user.name);
+                        token = data.token;
+                        document.getElementById('adminName').innerText = data.user.name;
+                        loadDashboard();
+                    } else {
+                        showError('Login failed! Please check your credentials.');
                         showLoginModal();
-                    });
-                }
-            });
-        }
-        
-        async function verifyTokenAndLoad() {
-            try {
-                // Try to load sites to verify token
-                const res = await fetch(`${API_URL}/sites/list`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (res.status === 401) {
-                    localStorage.removeItem('token');
+                    }
+                })
+                .catch(() => {
+                    showError('Network error! Please try again.');
                     showLoginModal();
-                } else {
-                    const adminName = localStorage.getItem('adminName') || 'Admin';
-                    document.getElementById('adminName').innerText = adminName;
-                    loadDashboard();
-                }
-            } catch (err) {
-                console.error('Token verification failed:', err);
+                });
+            }
+        });
+    }
+    
+    async function verifyTokenAndLoad() {
+        try {
+            const res = await fetch(`${API_URL}/sites/list`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (res.status === 401) {
+                localStorage.removeItem('token');
                 showLoginModal();
+            } else {
+                const adminName = localStorage.getItem('adminName') || 'Admin';
+                document.getElementById('adminName').innerText = adminName;
+                loadDashboard();
             }
+        } catch (err) {
+            console.error('Token verification failed:', err);
+            showLoginModal();
+        }
+    }
+    
+    async function loadDashboard() {
+        await Promise.all([
+            loadSites(),
+            loadStats()
+        ]);
+    }
+    
+    async function createSite() {
+        const name = document.getElementById('siteName').value;
+        const domain = document.getElementById('siteDomain').value;
+        
+        if (!name || !domain) {
+            showWarning('Please fill both Site Name and Domain!');
+            return;
         }
         
-        async function loadDashboard() {
-            await Promise.all([
-                loadSites(),
-                loadStats()
-            ]);
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+        btn.disabled = true;
+        
+        try {
+            const res = await fetch(`${API_URL}/sites/create`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ name, domain })
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    html: `Site "<strong>${escapeHtml(name)}</strong>" created successfully!<br><br>🔑 <strong>API Key:</strong><br><code style="background: #f0f0f0; padding: 10px; border-radius: 5px; display: block; margin-top: 10px; word-break: break-all;">${data.apiKey}</code><br><br><small>Save this key to embed chat widget on your website.</small>`,
+                    allowOutsideClick: false
+                });
+                document.getElementById('siteName').value = '';
+                document.getElementById('siteDomain').value = '';
+                loadSites();
+                loadStats();
+            } else {
+                showError(data.error || 'Failed to create site');
+            }
+        } catch (err) {
+            showError('Network error: ' + err.message);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    }
+    
+    async function addSupport() {
+        const siteId = document.getElementById('siteSelect').value;
+        const name = document.getElementById('supportName').value;
+        const email = document.getElementById('supportEmail').value;
+        const password = document.getElementById('supportPassword').value;
+        
+        if (!siteId || !name || !email || !password) {
+            showWarning('Please fill all fields!');
+            return;
         }
         
-        async function createSite() {
-            const name = document.getElementById('siteName').value;
-            const domain = document.getElementById('siteDomain').value;
-            
-            if (!name || !domain) {
-                showWarning('Please fill both Site Name and Domain!');
-                return;
-            }
-            
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
-            btn.disabled = true;
-            
-            try {
-                const res = await fetch(`${API_URL}/sites/create`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ name, domain })
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success!',
-                        html: `Site "<strong>${escapeHtml(name)}</strong>" created successfully!<br><br>🔑 <strong>API Key:</strong><br><code style="background: #f0f0f0; padding: 10px; border-radius: 5px; display: block; margin-top: 10px; word-break: break-all;">${data.apiKey}</code><br><br><small>Save this key to embed chat widget on your website.</small>`,
-                        allowOutsideClick: false
-                    });
-                    document.getElementById('siteName').value = '';
-                    document.getElementById('siteDomain').value = '';
-                    loadSites();
-                    loadStats();
-                } else {
-                    showError(data.error || 'Failed to create site');
-                }
-            } catch (err) {
-                showError('Network error: ' + err.message);
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+        btn.disabled = true;
         
-        async function addSupport() {
-            const siteId = document.getElementById('siteSelect').value;
-            const name = document.getElementById('supportName').value;
-            const email = document.getElementById('supportEmail').value;
-            const password = document.getElementById('supportPassword').value;
+        try {
+            const res = await fetch(`${API_URL}/sites/add-support`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ siteId, name, email, password })
+            });
             
-            if (!siteId || !name || !email || !password) {
-                showWarning('Please fill all fields!');
-                return;
+            const data = await res.json();
+            
+            if (res.ok) {
+                showSuccess('Support agent added!', `${name} (${email}) added successfully!`);
+                document.getElementById('supportName').value = '';
+                document.getElementById('supportEmail').value = '';
+                document.getElementById('supportPassword').value = '';
+                loadStats();
+            } else {
+                showError(data.error || 'Failed to add support agent');
             }
-            
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
-            btn.disabled = true;
-            
-            try {
-                const res = await fetch(`${API_URL}/sites/add-support`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ siteId, name, email, password })
-                });
-                
-                const data = await res.json();
-                
-                if (res.ok) {
-                    showSuccess('Support agent added!', `${name} (${email}) added successfully!`);
-                    document.getElementById('supportName').value = '';
-                    document.getElementById('supportEmail').value = '';
-                    document.getElementById('supportPassword').value = '';
-                    loadStats();
-                } else {
-                    showError(data.error || 'Failed to add support agent');
-                }
-            } catch (err) {
-                showError('Network error: ' + err.message);
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+        } catch (err) {
+            showError('Network error: ' + err.message);
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
-        
-        async function loadSites() {
-            try {
-                const res = await fetch(`${API_URL}/sites/list`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const sites = await res.json();
-                
-                const siteSelect = document.getElementById('siteSelect');
-                const sitesList = document.getElementById('sitesList');
-                
-                siteSelect.innerHTML = '<option value="">🌐 Choose a site...</option>';
-                
-                if (sites.length === 0) {
-                    sitesList.innerHTML = `
-                        <div class="text-center py-12 bg-gray-50 rounded-xl">
-                            <i class="fas fa-folder-open text-5xl text-gray-300 mb-3"></i>
-                            <p class="text-gray-500">No sites created yet. Create your first site above!</p>
-                        </div>
-                    `;
-                    return;
-                }
-                
-                sitesList.innerHTML = '';
-                
-                sites.forEach(site => {
-                    siteSelect.innerHTML += `<option value="${site.id}">🏢 ${site.name} (${site.domain})</option>`;
-                    
-                    sitesList.innerHTML += `
-                        <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300">
-                            <div class="flex justify-between items-start mb-3">
-                                <div>
-                                    <h3 class="text-lg font-bold text-gray-800">
-                                        <i class="fas fa-globe text-blue-500 mr-2"></i>${escapeHtml(site.name)}
-                                    </h3>
-                                    <p class="text-gray-500 text-sm mt-1">
-                                        <i class="fas fa-link mr-1"></i>${escapeHtml(site.domain)}
-                                    </p>
-                                </div>
-                                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
-                                    <i class="fas fa-check-circle mr-1"></i>Active
-                                </span>
-                            </div>
-                            <div class="bg-gray-50 rounded-lg p-3 mt-3">
-                                <p class="text-xs text-gray-500 mb-1">
-                                    <i class="fas fa-key mr-1"></i>API Key:
-                                </p>
-                                <code class="text-sm bg-white px-2 py-1 rounded border break-all block font-mono">${site.apiKey}</code>
-                            </div>
-                            <div class="bg-gray-50 rounded-lg p-3 mt-3">
-                                <p class="text-xs text-gray-500 mb-1">
-                                    <i class="fas fa-code mr-1"></i>Integration Code:
-                                </p>
-                                <code class="text-sm bg-white px-2 py-1 rounded border break-all block font-mono" style="font-size: 11px;">
-                                    &lt;script src="http://localhost:3000/widget.js" data-chat-widget data-api-key="${site.apiKey}"&gt;&lt;/script&gt;
-                                </code>
-                                <button onclick="copyToClipboard('${site.apiKey}')" 
-                                        class="mt-2 text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">
-                                    <i class="fas fa-copy mr-1"></i>Copy Code
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (err) {
-                console.error('Load sites error:', err);
-                document.getElementById('sitesList').innerHTML = `
-                    <div class="text-center py-12 text-red-500">
-                        <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
-                        <p>Failed to load sites. Please refresh the page.</p>
+    }
+    
+    async function loadSites() {
+        try {
+            const res = await fetch(`${API_URL}/sites/list`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const sites = await res.json();
+            
+            const siteSelect = document.getElementById('siteSelect');
+            const sitesList = document.getElementById('sitesList');
+            
+            siteSelect.innerHTML = '<option value="">🌐 Choose a site...</option>';
+            
+            if (sites.length === 0) {
+                sitesList.innerHTML = `
+                    <div class="text-center py-12 bg-gray-50 rounded-xl">
+                        <i class="fas fa-folder-open text-5xl text-gray-300 mb-3"></i>
+                        <p class="text-gray-500">No sites created yet. Create your first site above!</p>
                     </div>
                 `;
+                return;
             }
+            
+            sitesList.innerHTML = '';
+            
+            sites.forEach(site => {
+                siteSelect.innerHTML += `<option value="${site.id}">🏢 ${site.name} (${site.domain})</option>`;
+                
+                sitesList.innerHTML += `
+                    <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-800">
+                                    <i class="fas fa-globe text-blue-500 mr-2"></i>${escapeHtml(site.name)}
+                                </h3>
+                                <p class="text-gray-500 text-sm mt-1">
+                                    <i class="fas fa-link mr-1"></i>${escapeHtml(site.domain)}
+                                </p>
+                            </div>
+                            <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                <i class="fas fa-check-circle mr-1"></i>Active
+                            </span>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 mt-3">
+                            <p class="text-xs text-gray-500 mb-1">
+                                <i class="fas fa-key mr-1"></i>API Key:
+                            </p>
+                            <code class="text-sm bg-white px-2 py-1 rounded border break-all block font-mono">${site.apiKey}</code>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 mt-3">
+                            <p class="text-xs text-gray-500 mb-1">
+                                <i class="fas fa-code mr-1"></i>Integration Code:
+                            </p>
+                            <code class="text-sm bg-white px-2 py-1 rounded border break-all block font-mono" style="font-size: 11px;">
+                                &lt;script src="http://localhost:3000/widget.js" data-chat-widget data-api-key="${site.apiKey}"&gt;&lt;/script&gt;
+                            </code>
+                            <button onclick="copyToClipboard('${site.apiKey}')" 
+                                    class="mt-2 text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">
+                                <i class="fas fa-copy mr-1"></i>Copy Code
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        } catch (err) {
+            console.error('Load sites error:', err);
+            document.getElementById('sitesList').innerHTML = `
+                <div class="text-center py-12 text-red-500">
+                    <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                    <p>Failed to load sites. Please refresh the page.</p>
+                </div>
+            `;
         }
-        
-        async function loadStats() {
+    }
+    
+    async function loadStats() {
+        try {
+            // Load sites count
+            const sitesRes = await fetch(`${API_URL}/sites/list`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const sites = await sitesRes.json();
+            document.getElementById('totalSites').innerText = sites.length;
+            
+            // Load support agents count
             try {
-                // Load sites count
-                const sitesRes = await fetch(`${API_URL}/sites/list`, {
+                const agentsRes = await fetch(`${API_URL}/support-agents/count`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                const sites = await sitesRes.json();
-                document.getElementById('totalSites').innerText = sites.length;
                 
-                // Load support agents count from new API
-                try {
-                    const agentsRes = await fetch(`${API_URL}/support-agents/count`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    
-                    if (agentsRes.ok) {
-                        const agentsData = await agentsRes.json();
-                        document.getElementById('totalAgents').innerText = agentsData.count;
-                    } else {
-                        // Fallback: count from sites if API fails
-                        let totalAgents = 0;
-                        for (const site of sites) {
-                            try {
-                                const siteAgentsRes = await fetch(`${API_URL}/sites/${site.id}/support-agents`, {
-                                    headers: { 'Authorization': `Bearer ${token}` }
-                                });
-                                if (siteAgentsRes.ok) {
-                                    const agents = await siteAgentsRes.json();
-                                    totalAgents += agents.length;
-                                }
-                            } catch (err) {
-                                console.log(`No agents found for site ${site.id}`);
+                if (agentsRes.ok) {
+                    const agentsData = await agentsRes.json();
+                    document.getElementById('totalAgents').innerText = agentsData.count;
+                } else {
+                    let totalAgents = 0;
+                    for (const site of sites) {
+                        try {
+                            const siteAgentsRes = await fetch(`${API_URL}/sites/${site.id}/support-agents`, {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            if (siteAgentsRes.ok) {
+                                const agents = await siteAgentsRes.json();
+                                totalAgents += agents.length;
+                            }
+                        } catch (err) {}
+                    }
+                    document.getElementById('totalAgents').innerText = totalAgents;
+                }
+            } catch (err) {
+                document.getElementById('totalAgents').innerText = '0';
+            }
+            
+            // ========== ACTIVE CHATS COUNT ==========
+            try {
+                let totalActiveChats = 0;
+                for (const site of sites) {
+                    try {
+                        const threadsRes = await fetch(`${API_URL}/threads/site/${site.id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (threadsRes.ok) {
+                            const threads = await threadsRes.json();
+                            const activeCount = threads.filter(t => t.status === 'open' || t.status === 'pending').length;
+                            totalActiveChats += activeCount;
+                        }
+                    } catch (err) {}
+                }
+                document.getElementById('activeChats').innerText = totalActiveChats;
+            } catch (err) {
+                document.getElementById('activeChats').innerText = '0';
+            }
+            
+            // ========== TOTAL MESSAGES COUNT ==========
+            try {
+                let totalMessages = 0;
+                for (const site of sites) {
+                    try {
+                        const threadsRes = await fetch(`${API_URL}/threads/site/${site.id}`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        if (threadsRes.ok) {
+                            const threads = await threadsRes.json();
+                            for (const thread of threads) {
+                                try {
+                                    const msgRes = await fetch(`${API_URL}/threads/${thread.id}/messages`);
+                                    if (msgRes.ok) {
+                                        const messages = await msgRes.json();
+                                        totalMessages += messages.length;
+                                    }
+                                } catch (err) {}
                             }
                         }
-                        document.getElementById('totalAgents').innerText = totalAgents;
-                    }
-                } catch (err) {
-                    console.error('Error loading agents:', err);
-                    document.getElementById('totalAgents').innerText = '0';
+                    } catch (err) {}
                 }
-                
-                // Load active chats count (from threads table)
-                try {
-                    // You can implement this later
-                    document.getElementById('activeChats').innerText = '0';
-                } catch (err) {
-                    document.getElementById('activeChats').innerText = '0';
-                }
-                
-                // Load total messages count
-                try {
-                    // You can implement this later
-                    document.getElementById('totalMessages').innerText = '0';
-                } catch (err) {
-                    document.getElementById('totalMessages').innerText = '0';
-                }
-                
+                document.getElementById('totalMessages').innerText = totalMessages;
             } catch (err) {
-                console.error('Load stats error:', err);
-                document.getElementById('totalSites').innerText = '0';
-                document.getElementById('totalAgents').innerText = '0';
-                document.getElementById('activeChats').innerText = '0';
                 document.getElementById('totalMessages').innerText = '0';
             }
+            
+        } catch (err) {
+            console.error('Load stats error:', err);
+            document.getElementById('totalSites').innerText = '0';
+            document.getElementById('totalAgents').innerText = '0';
+            document.getElementById('activeChats').innerText = '0';
+            document.getElementById('totalMessages').innerText = '0';
         }
-        
-        function copyToClipboard(apiKey) {
-            const code = `<script src="http://localhost:3000/widget.js" data-chat-widget data-api-key="${apiKey}"><\/script>`;
-            navigator.clipboard.writeText(code);
-            showSuccess('Copied!', 'Integration code copied to clipboard');
-        }
-        
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-        
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('adminName');
-            location.reload();
-        }
-    </script>
+    }
+    
+    function copyToClipboard(apiKey) {
+        const code = `<script src="http://localhost:3000/widget.js" data-chat-widget data-api-key="${apiKey}"><\/script>`;
+        navigator.clipboard.writeText(code);
+        showSuccess('Copied!', 'Integration code copied to clipboard');
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('adminName');
+        location.reload();
+    }
+</script>
 </body>
 </html>
