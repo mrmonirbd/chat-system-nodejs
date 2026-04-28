@@ -11,12 +11,30 @@ require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
+
+// Socket.IO with CORS
 const io = socketIO(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] }
+  cors: {
+    origin: "*",  // production url put here
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+  }
 });
 
-app.use(cors());
+// Express CORS Middleware
+app.use(cors({
+  origin: "*",  // production url put here
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
+// Preflight requests handle
+app.options('*', cors());
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../admin-panel')));
 app.use('/frontend', express.static(path.join(__dirname, '../frontend')));
 
@@ -241,15 +259,52 @@ app.get('/api/sites/config/:apiKey', async (req, res) => {
 });
 
 // Create Thread
+// Create Thread (Without Op)
 app.post('/api/threads/create', async (req, res) => {
   try {
     const { siteId, visitorId, visitorName, visitorEmail } = req.body;
-    let thread = await Thread.findOne({ where: { siteId, visitorId, status: { [Op.ne]: 'closed' } } });
+    
+    console.log('📝 Creating thread for:', { siteId, visitorId });
+    
+    // First check if open thread exists (without using Op)
+    let thread = await Thread.findOne({ 
+      where: { 
+        siteId: siteId, 
+        visitorId: visitorId,
+        status: 'open' 
+      } 
+    });
+    
+    // If not open, check for pending
     if (!thread) {
-      thread = await Thread.create({ siteId, visitorId, visitorName, visitorEmail });
+      thread = await Thread.findOne({ 
+        where: { 
+          siteId: siteId, 
+          visitorId: visitorId,
+          status: 'pending' 
+        } 
+      });
     }
+    
+    // If no thread exists, create new one
+    if (!thread) {
+      thread = await Thread.create({ 
+        siteId, 
+        visitorId, 
+        visitorName: visitorName || 'Guest', 
+        visitorEmail: visitorEmail || null,
+        status: 'pending',
+        lastMessageAt: new Date()
+      });
+      console.log('New thread created:', thread.id);
+    } else {
+      console.log(' Existing thread found:', thread.id);
+    }
+    
     res.json({ threadId: thread.id });
+    
   } catch (err) {
+    console.error('Create thread error:', err);
     res.status(500).json({ error: err.message });
   }
 });
