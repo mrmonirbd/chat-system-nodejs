@@ -183,128 +183,188 @@
         }
         
         function initSocket() {
-           
-            socket = io('http://localhost:3000');
+    socket = io('http://localhost:3000');
+
+    socket.on('connect', () => {
+        console.log('✅ Socket connected, ID:', socket.id);
+        socket.emit('support-auth', token);
+        if (currentSiteId) socket.emit('join-site', currentSiteId);
+        
+        const lastThreadId = localStorage.getItem('lastThreadId');
+        if (lastThreadId && currentAgent) {
+            socket.emit('join-thread', parseInt(lastThreadId), currentAgent.id);
+            console.log('✅ Re-joined thread on reconnect:', lastThreadId);
+        }
+    });
     
-            socket.on('connect', () => {
-                console.log('✅ Socket connected, ID:', socket.id);
-                socket.emit('support-auth', token);
-                if (currentSiteId) socket.emit('join-site', currentSiteId);
-                
-                // 🔄 রিকানেক্ট হলে আগের থ্রেডে জয়েন করুন
-                const lastThreadId = localStorage.getItem('lastThreadId');
-                if (lastThreadId && currentAgent) {
-                    socket.emit('join-thread', parseInt(lastThreadId), currentAgent.id);
-                    console.log('✅ Re-joined thread on reconnect:', lastThreadId);
-                }
-            });
-            // ========== IMPORTANT: Handle new messages ==========
-           socket.on('new-message', (msg) => {                
-                // Prevent duplicate
-                if (displayedMessageIds.has(msg.id)) {
-                    console.log('Duplicate ignored:', msg.id);
-                    return;
-                }
-                displayedMessageIds.add(msg.id);
-                
-                // Play sound for visitor messages
-                if (msg.sender === 'visitor') {
-                    playNotificationSound();
-                    
-                    // Increment unread count if not current thread
-                    if (currentThreadId !== msg.threadId) {
-                        unreadCounts[msg.threadId] = (unreadCounts[msg.threadId] || 0) + 1;
-                    }
-                    
-                    // Show browser notification
-                    if (currentThreadId !== msg.threadId) {
-                        showNotification(`New message from Visitor: ${msg.message.substring(0, 50)}`);
-                    }
-                    
-                    // Refresh thread list
-                    loadThreads();
-                }
-                
-                // Add to chat if current thread
-                if (currentThreadId === msg.threadId) {
-                    addMessageToChat(msg);
-                }
-            });
+    // ========== FIXED: Force thread list update ==========
+    socket.on('new-message', (msg) => {
+        console.log('🔴🔴🔴 NEW MESSAGE RECEIVED:', msg);
+        
+        // Prevent duplicate
+        if (displayedMessageIds.has(msg.id)) {
+            console.log('Duplicate ignored:', msg.id);
+            return;
+        }
+        displayedMessageIds.add(msg.id);
+        
+        // ✅ CRITICAL: Always reload threads for ANY message
+        console.log('🔄 Reloading threads...');
+        loadThreads();
+        
+        // Play sound for visitor messages
+        if (msg.sender === 'visitor') {
+            playNotificationSound();
             
-            socket.on('visitor-typing', (data) => {
-                if (data.isTyping && currentThreadId) {
-                    document.getElementById('chatHeaderStatus').innerHTML = '✏️ Visitor is typing...';
-                } else {
-                    document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
-                }
-            });
+            // Increment unread count if not current thread
+            if (currentThreadId !== msg.threadId) {
+                unreadCounts[msg.threadId] = (unreadCounts[msg.threadId] || 0) + 1;
+                console.log(`📊 Unread count for thread ${msg.threadId}: ${unreadCounts[msg.threadId]}`);
+                // Reload again to show badge
+                setTimeout(() => loadThreads(), 500);
+            }
             
-            socket.on('message-sent', (msg) => {
-                console.log('✅ Message sent confirmation:', msg);
-                if (currentThreadId === msg.threadId && !displayedMessageIds.has(msg.id)) {
-                    displayedMessageIds.add(msg.id);
-                    addMessageToChat(msg);
-                }
-            });
+            // Show browser notification
+            if (currentThreadId !== msg.threadId && Notification.permission === 'granted') {
+                new Notification('New Message', { body: msg.message.substring(0, 50) });
+            }
         }
         
-        async function loadThreads() {
-            try {
-                const res = await fetch(`${API_URL}/threads/site/${currentSiteId}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const threads = await res.json();
-                
-                const threadsList = document.getElementById('threadsList');
-                const threadCount = document.getElementById('threadCount');
-                
-                threadCount.innerText = `${threads.length} threads`;
-                
-                if (threads.length === 0) {
-                    threadsList.innerHTML = `<div class="text-center py-8 text-gray-500"><i class="fas fa-inbox text-3xl mb-2"></i><p>No conversations yet</p></div>`;
-                    return;
-                }
-                
-                threadsList.innerHTML = '';
-                
-                for (const thread of threads) {
-                    // Get last message
-                    let lastMessage = '';
-                    try {
-                        const msgRes = await fetch(`${API_URL}/threads/${thread.id}/messages`);
-                        const messages = await msgRes.json();
-                        if (messages.length > 0) {
-                            lastMessage = messages[messages.length - 1].message;
-                        }
-                    } catch(e) {}
-                    
-                    const isActive = currentThreadId === thread.id;
-                    const unreadCount = unreadCounts[thread.id] || 0;
-                    
-                    threadsList.innerHTML += `
-                        <div class="thread-item p-3 rounded-xl ${isActive ? 'active' : 'hover:bg-gray-50'}" onclick="selectThread(${thread.id})">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-2">
-                                        <i class="fas fa-user-circle text-gray-400"></i>
-                                        <span class="font-semibold text-gray-800">${escapeHtml(thread.visitorName || 'Guest')}</span>
-                                        ${unreadCount > 0 ? `<span class="notification-badge">${unreadCount}</span>` : ''}
-                                    </div>
-                                    <p class="text-xs text-gray-500 mt-1">
-                                        <i class="fas fa-clock mr-1"></i>${new Date(thread.lastMessageAt).toLocaleString()}
-                                    </p>
-                                    <p class="text-sm text-gray-600 mt-1 truncate">${escapeHtml(lastMessage.substring(0, 50)) || 'Click to view'}</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-            } catch (err) { console.error('Load threads error:', err); }
+        // Add to chat if current thread
+        if (currentThreadId === msg.threadId) {
+            addMessageToChat(msg);
         }
+    });
+    
+    socket.on('visitor-typing', (data) => {
+        if (data.isTyping && currentThreadId) {
+            document.getElementById('chatHeaderStatus').innerHTML = '✏️ Visitor is typing...';
+            setTimeout(() => {
+                if (document.getElementById('chatHeaderStatus').innerHTML.includes('typing')) {
+                    document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
+                }
+            }, 2000);
+        } else {
+            document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
+        }
+    });
+    
+    socket.on('message-sent', (msg) => {
+        console.log('✅ Message sent confirmation:', msg);
+        if (currentThreadId === msg.threadId && !displayedMessageIds.has(msg.id)) {
+            displayedMessageIds.add(msg.id);
+            addMessageToChat(msg);
+            loadThreads();  // Update thread list
+        }
+    });
+}
+                
+        async function loadThreads() {
+    try {
+        console.log('🔄 Loading threads for site:', currentSiteId);
+        
+        const res = await fetch(`${API_URL}/threads/site/${currentSiteId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const threads = await res.json();
+        
+        const threadsList = document.getElementById('threadsList');
+        const threadCount = document.getElementById('threadCount');
+        
+        // Store old threads for animation comparison
+        const oldThreads = JSON.parse(localStorage.getItem('threadsSnapshot') || '{}');
+        
+        threadCount.innerText = `${threads.length} threads`;
+        
+        if (threads.length === 0) {
+            threadsList.innerHTML = `<div class="text-center py-8 text-gray-500"><i class="fas fa-inbox text-3xl mb-2"></i><p>No conversations yet</p></div>`;
+            return;
+        }
+        
+        // Get last message for each thread
+        for (const thread of threads) {
+            try {
+                const msgRes = await fetch(`${API_URL}/threads/${thread.id}/messages`);
+                const messages = await msgRes.json();
+                if (messages.length > 0) {
+                    const lastMsg = messages[messages.length - 1];
+                    thread.lastMsg = lastMsg.message;
+                    thread.lastMsgTime = lastMsg.createdAt;
+                    thread.lastMsgId = lastMsg.id;
+                } else {
+                    thread.lastMsg = 'No messages';
+                    thread.lastMsgTime = thread.lastMessageAt;
+                    thread.lastMsgId = null;
+                }
+            } catch(e) {
+                thread.lastMsg = 'Click to view';
+                thread.lastMsgTime = thread.lastMessageAt;
+                thread.lastMsgId = null;
+            }
+        }
+        
+        // Sort by last message time (newest first)
+        threads.sort((a, b) => new Date(b.lastMsgTime) - new Date(a.lastMsgTime));
+        
+        let html = '';
+        for (const thread of threads) {
+            const isActive = currentThreadId === thread.id;
+            const unreadCount = unreadCounts[thread.id] || 0;
+            
+            // Check if this thread has new message (for animation)
+            const oldThread = oldThreads[thread.id];
+            const hasNewMessage = oldThread && oldThread.lastMsgId !== thread.lastMsgId;
+            const animateClass = hasNewMessage ? 'thread-updating' : '';
+            
+            html += `
+                <div id="thread-${thread.id}" class="thread-item p-3 rounded-xl ${isActive ? 'active' : 'hover:bg-gray-50'} ${animateClass}" onclick="selectThread(${thread.id})">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-user-circle text-gray-400"></i>
+                                <span class="font-semibold text-gray-800">${escapeHtml(thread.visitorName || 'Guest')}</span>
+                                ${unreadCount > 0 ? `<span class="notification-badge">${unreadCount}</span>` : ''}
+                                ${hasNewMessage ? '<span class="thread-badge-new">● New</span>' : ''}
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">
+                                <i class="fas fa-clock mr-1"></i>${new Date(thread.lastMsgTime).toLocaleString()}
+                            </p>
+                            <p id="last-msg-${thread.id}" class="text-sm text-gray-600 mt-1 truncate ${hasNewMessage ? 'last-msg-updated' : ''}">
+                                ${escapeHtml(thread.lastMsg.substring(0, 50))}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        threadsList.innerHTML = html;
+        
+        // Save current threads snapshot for next comparison
+        const snapshot = {};
+        threads.forEach(t => {
+            snapshot[t.id] = { lastMsgId: t.lastMsgId, lastMsg: t.lastMsg };
+        });
+        localStorage.setItem('threadsSnapshot', JSON.stringify(snapshot));
+        
+        // Remove animation class after animation ends
+        setTimeout(() => {
+            document.querySelectorAll('.thread-updating').forEach(el => {
+                el.classList.remove('thread-updating');
+            });
+            document.querySelectorAll('.last-msg-updated').forEach(el => {
+                el.classList.remove('last-msg-updated');
+            });
+        }, 500);
+        
+        console.log('✅ Thread list updated');
+        
+    } catch (err) { 
+        console.error('Load threads error:', err); 
+    }
+}
         
         async function selectThread(threadId) {
             currentThreadId = threadId;
-            // Clear unread count for this thread
             unreadCounts[threadId] = 0;
             localStorage.setItem('lastThreadId', threadId);
             
@@ -312,6 +372,12 @@
             document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendButton').disabled = false;
+            
+            // ✅ Join the room
+            if (socket && socket.connected) {
+                socket.emit('join-thread', threadId, currentAgent?.id);
+                console.log('✅ Joined room: thread-' + threadId);
+            }
             
             await loadMessages(threadId);
             loadThreads();
