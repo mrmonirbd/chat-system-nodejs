@@ -225,6 +225,7 @@
                 if (!res.ok) throw new Error('Failed to load sites');
                 
                 const sites = await res.json();
+                console.log('Sites loaded:', sites);
                 
                 const siteSelect = document.getElementById('siteSelect');
                 const sitesList = document.getElementById('sitesList');
@@ -232,11 +233,19 @@
                 siteSelect.innerHTML = '<option value="">Select Site</option>';
                 sitesList.innerHTML = '';
                 
+                if (!sites || sites.length === 0) {
+                    sitesList.innerHTML = '<p class="text-gray-500">No sites found. Create one first.</p>';
+                    return;
+                }
+                
                 sites.forEach(site => {
-                    siteSelect.innerHTML += `<option value="${site._id}">${site.name}</option>`;
+                    const siteId = site._id || site.id;
+                    console.log('Adding site option with ID:', siteId, 'Site:', site);
+                    siteSelect.innerHTML += `<option value="${siteId}">${site.name} (ID: ${siteId})</option>`;
                     sitesList.innerHTML += `
                         <div class="border-b py-3">
                             <p><strong>${site.name}</strong> - ${site.domain}</p>
+                            <p class="text-sm text-gray-600">Site ID: <code>${siteId}</code></p>
                             <p class="text-sm text-gray-600">API Key: <code>${site.apiKey}</code></p>
                             <p class="text-sm">JS Snippet: <code>&lt;script src="${API_URL.replace('/api', '')}/widget.js" data-chat-widget data-api-key="${site.apiKey}"&gt;&lt;/script&gt;</code></p>
                         </div>
