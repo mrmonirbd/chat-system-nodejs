@@ -373,49 +373,53 @@ io.on('connection', (socket) => {
     }
   });
 
-  // ========== VISITOR MESSAGE ==========
-  socket.on('visitor-message', async (data) => {
+// ========== VISITOR MESSAGE ==========
+socket.on('visitor-message', async (data) => {
     try {
-      const { threadId, message, visitorId } = data;
-      const threadIdNum = parseInt(threadId);
+        const { threadId, message, visitorId } = data;
+        const threadIdNum = parseInt(threadId);
 
-      const roomName = `thread-${threadIdNum}`;
-     const roomSize = io.sockets.adapter.rooms.get(roomName)?.size || 0;
-      console.log(`📊 Room "${roomName}" has ${roomSize} clients`)
-
-      console.log(`Visitor message in thread ${threadIdNum}: ${message}`);
-      
-      // Save message to database
-      const newMessage = await Message.create({ 
-        threadId: threadIdNum, 
-        sender: 'visitor', 
-        senderId: visitorId, 
-        message 
-      });
-      
-      console.log(`Visitor message saved, ID: ${newMessage.id}`);
-      
-      // Update thread last message time
-      await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
-      
-      // Prepare message data
-      const messageData = {
-        id: newMessage.id,
-        threadId: newMessage.threadId,
-        sender: newMessage.sender,
-        senderId: newMessage.senderId,
-        message: newMessage.message,
-        createdAt: newMessage.createdAt
-      };
-      
-      // Broadcast to ALL clients in this thread (visitor + support)
-      io.to(`thread-${threadIdNum}`).emit('new-message', messageData);
-      console.log(`Broadcasted visitor message to thread ${threadIdNum}`);
-      
+        const roomName = `thread-${threadIdNum}`;
+        const roomSize = io.sockets.adapter.rooms.get(roomName)?.size || 0;
+        console.log(`📊 Room "${roomName}" has ${roomSize} clients`);
+        console.log(`Visitor message in thread ${threadIdNum}: ${message}`);
+        
+        // Save message to database
+        const newMessage = await Message.create({ 
+            threadId: threadIdNum, 
+            sender: 'visitor', 
+            senderId: visitorId, 
+            message 
+        });
+        
+        console.log(`Visitor message saved, ID: ${newMessage.id}`);
+        
+        // Update thread last message time
+        await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
+        
+        // Prepare message data
+        const messageData = {
+            id: newMessage.id,
+            threadId: newMessage.threadId,
+            sender: newMessage.sender,
+            senderId: newMessage.senderId,
+            message: newMessage.message,
+            createdAt: newMessage.createdAt
+        };
+        
+        // Debug: Room clients before broadcast
+        console.log(`📤 Emitting to room: thread-${threadIdNum}`);
+        console.log(`📤 Room clients: ${roomSize}`);
+        
+        // Broadcast to ALL clients in this thread (visitor + support)
+        io.to(`thread-${threadIdNum}`).emit('new-message', messageData);
+        console.log(`✅ Broadcasted visitor message to thread ${threadIdNum}`);
+        
     } catch (err) {
-      console.error('Visitor message error:', err);
+        console.error('Visitor message error:', err);
     }
-  });
+});
+
 
   // ========== SUPPORT MESSAGE ==========
   socket.on('support-message', async (data) => {

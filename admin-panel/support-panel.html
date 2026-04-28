@@ -175,9 +175,11 @@
                 socket.emit('support-auth', token);
                 if (currentSiteId) socket.emit('join-site', currentSiteId);
                 
-                // Join current thread if any
-                if (currentThreadId) {
-                    socket.emit('join-thread', currentThreadId, currentAgent?.id);
+                // 🔄 রিকানেক্ট হলে আগের থ্রেডে জয়েন করুন
+                const lastThreadId = localStorage.getItem('lastThreadId');
+                if (lastThreadId && currentAgent) {
+                    socket.emit('join-thread', parseInt(lastThreadId), currentAgent.id);
+                    console.log('✅ Re-joined thread on reconnect:', lastThreadId);
                 }
             });
             // ========== IMPORTANT: Handle new messages ==========
@@ -290,6 +292,7 @@
             currentThreadId = threadId;
             // Clear unread count for this thread
             unreadCounts[threadId] = 0;
+            localStorage.setItem('lastThreadId', threadId);
             
             document.getElementById('chatHeaderTitle').innerHTML = '<i class="fas fa-comment-dots mr-2"></i>Chatting with Visitor';
             document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
@@ -422,6 +425,8 @@
                 sendMessage();
             }
         });
+
+        
         
         setTimeout(() => setupTypingListener(), 1000);
     </script>
