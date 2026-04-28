@@ -363,24 +363,33 @@
     }
     
     async function verifyTokenAndLoad() {
-        try {
-            const res = await fetch(`${API_URL}/sites/list`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            
-            if (res.status === 401) {
-                localStorage.removeItem('token');
-                showLoginModal();
-            } else {
-                const adminName = localStorage.getItem('adminName') || 'Admin';
-                document.getElementById('adminName').innerText = adminName;
-                loadDashboard();
-            }
-        } catch (err) {
-            console.error('Token verification failed:', err);
+    try {
+        const res = await fetch(`${API_URL}/sites/list`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (res.status === 401) {
+            localStorage.removeItem('token');
             showLoginModal();
+        } else {
+            const adminName = localStorage.getItem('adminName') || 'Admin';
+            document.getElementById('adminName').innerText = adminName;
+            
+            // Socket.IO শুরু করুন
+            initAdminSocket();
+            
+            loadDashboard();
+            
+            setInterval(() => {
+                loadStats();
+                loadSites();
+            }, 30000);
         }
+    } catch (err) {
+        console.error('Token verification failed:', err);
+        showLoginModal();
     }
+}
     
     async function loadDashboard() {
         await Promise.all([
@@ -666,6 +675,33 @@
         localStorage.removeItem('adminName');
         location.reload();
     }
+
+    let adminSocket = null;
+
+function initAdminSocket() {
+    adminSocket = io('http://localhost:3000');
+    
+    adminSocket.on('connect', () => {
+        console.log('✅ Admin socket connected');
+        adminSocket.emit('admin-auth', token);
+    });
+    
+    // লাইভ আপডেটের জন্য লিসেনার
+    adminSocket.on('new-message', () => {
+        console.log('📨 Admin: New message received, updating stats');
+        loadStats();  // স্ট্যাটস রিফ্রেশ
+    });
+    
+    adminSocket.on('new-thread', () => {
+        console.log('🆕 Admin: New thread created');
+        loadStats();
+        loadSites();
+    });
+    
+    adminSocket.on('connect_error', (err) => {
+        console.error('Admin socket error:', err);
+    });
+}
 </script>
 </body>
 </html>
