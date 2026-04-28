@@ -1,137 +1,348 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Chat System Admin</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Chat Support System</title>
+    
+    <!-- Tailwind CSS + Font Awesome -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
-<body class="bg-gray-100">
-    <div class="container mx-auto p-8">
-        <h1 class="text-3xl font-bold mb-8">Admin Dashboard</h1>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         
-        <div class="grid grid-cols-2 gap-6">
-            <!-- Create Site Card -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold mb-4">Create New Site</h2>
-                <input type="text" id="siteName" placeholder="Site Name" class="w-full p-2 border rounded mb-3">
-                <input type="text" id="siteDomain" placeholder="Domain (e.g., example.com)" class="w-full p-2 border rounded mb-3">
-                <button onclick="createSite()" class="bg-blue-500 text-white px-4 py-2 rounded">Create Site</button>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5a67d8;
+        }
+        
+        /* Card Hover Effect */
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+        }
+        
+        /* Fade In Animation */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <div class="fade-in">
+            <div class="flex justify-between items-center mb-8 bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-xl">
+                <div>
+                    <h1 class="text-3xl font-bold text-white">
+                        <i class="fas fa-comments mr-3"></i>Chat Support System
+                    </h1>
+                    <p class="text-white/80 mt-2">Manage sites, support agents, and monitor all chats</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-white text-right">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-user-circle text-2xl"></i>
+                            <span id="adminName" class="font-semibold">Admin</span>
+                        </div>
+                        <button onclick="logout()" class="text-sm text-white/80 hover:text-white mt-1 transition">
+                            <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 fade-in">
+            <div class="bg-white rounded-2xl shadow-xl p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Total Sites</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-2" id="totalSites">0</p>
+                    </div>
+                    <div class="bg-blue-100 rounded-full p-3">
+                        <i class="fas fa-globe text-blue-600 text-2xl"></i>
+                    </div>
+                </div>
             </div>
             
-            <!-- Add Support User Card -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-xl font-semibold mb-4">Add Support Person</h2>
-                <select id="siteSelect" class="w-full p-2 border rounded mb-3"></select>
-                <input type="text" id="supportName" placeholder="Full Name" class="w-full p-2 border rounded mb-3">
-                <input type="email" id="supportEmail" placeholder="Email" class="w-full p-2 border rounded mb-3">
-                <input type="password" id="supportPassword" placeholder="Password" class="w-full p-2 border rounded mb-3">
-                <button onclick="addSupport()" class="bg-green-500 text-white px-4 py-2 rounded">Add Support</button>
+            <div class="bg-white rounded-2xl shadow-xl p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Support Agents</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-2" id="totalAgents">0</p>
+                    </div>
+                    <div class="bg-green-100 rounded-full p-3">
+                        <i class="fas fa-headset text-green-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-xl p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Active Chats</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-2" id="activeChats">0</p>
+                    </div>
+                    <div class="bg-yellow-100 rounded-full p-3">
+                        <i class="fas fa-comment-dots text-yellow-600 text-2xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-2xl shadow-xl p-6 card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Total Messages</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-2" id="totalMessages">0</p>
+                    </div>
+                    <div class="bg-purple-100 rounded-full p-3">
+                        <i class="fas fa-envelope text-purple-600 text-2xl"></i>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        <!-- Sites List -->
-        <div class="bg-white rounded-lg shadow p-6 mt-6">
-            <h2 class="text-xl font-semibold mb-4">Your Sites</h2>
-            <div id="sitesList"></div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 fade-in">
+            <!-- Create Site Card -->
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+                    <h2 class="text-xl font-bold text-white">
+                        <i class="fas fa-plus-circle mr-2"></i>Create New Site
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-building mr-2 text-gray-400"></i>Site Name
+                            </label>
+                            <input type="text" id="siteName" placeholder="e.g., My Awesome Website" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-link mr-2 text-gray-400"></i>Domain
+                            </label>
+                            <input type="text" id="siteDomain" placeholder="e.g., example.com" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        </div>
+                        <button onclick="createSite()" 
+                                class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold py-3 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+                            <i class="fas fa-check-circle mr-2"></i>Create Site
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Support Agent Card -->
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
+                    <h2 class="text-xl font-bold text-white">
+                        <i class="fas fa-user-plus mr-2"></i>Add Support Agent
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-globe mr-2 text-gray-400"></i>Select Site
+                            </label>
+                            <select id="siteSelect" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                                <option value="">Choose a site...</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-user mr-2 text-gray-400"></i>Full Name
+                            </label>
+                            <input type="text" id="supportName" placeholder="e.g., John Doe" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-envelope mr-2 text-gray-400"></i>Email Address
+                            </label>
+                            <input type="email" id="supportEmail" placeholder="e.g., john@example.com" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-medium mb-2">
+                                <i class="fas fa-lock mr-2 text-gray-400"></i>Password
+                            </label>
+                            <input type="password" id="supportPassword" placeholder="••••••••" 
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                        </div>
+                        <button onclick="addSupport()" 
+                                class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-3 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+                            <i class="fas fa-user-check mr-2"></i>Add Support Agent
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sites List Section -->
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden fade-in">
+            <div class="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
+                <h2 class="text-xl font-bold text-white">
+                    <i class="fas fa-list mr-2"></i>Your Websites & Integration
+                </h2>
+            </div>
+            <div class="p-6">
+                <div id="sitesList" class="grid grid-cols-1 gap-6">
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                        <p>Loading sites...</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    
+
     <script>
         const API_URL = 'http://localhost:3000/api';
         let token = localStorage.getItem('token');
         
-        // SweetAlert default config for top-right positioning
-        const showError = (message) => {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: message,
-                position: 'top-right',
-                toast: true,
-                timer: 5000,
-                timerProgressBar: true,
-                showConfirmButton: false
-            });
-        };
-        
-        const showSuccess = (title, message) => {
-            Swal.fire({
-                icon: 'success',
-                title: title,
-                text: message,
-                position: 'top-right',
-                toast: true,
-                timer: 3000,
-                timerProgressBar: true,
-                showConfirmButton: false
-            });
-        };
-        
+        // Check authentication
         if (!token) {
-            // Simple login (in production, make a proper login page)
-            Swal.fire({
-                title: 'Admin Login',
-                html: `
-                    <input type="email" id="loginEmail" class="swal2-input" placeholder="Admin Email">
-                    <input type="password" id="loginPassword" class="swal2-input" placeholder="Password">
-                `,
-                allowOutsideClick: false,
-                didOpen: (modal) => {
-                    document.getElementById('loginEmail').focus();
-                },
-                preConfirm: () => {
-                    const email = document.getElementById('loginEmail').value;
-                    const password = document.getElementById('loginPassword').value;
-                    
-                    if (!email || !password) {
-                        Swal.showValidationMessage('Please enter email and password');
-                        return false;
-                    }
-                    return { email, password };
-                }
-            }).then(result => {
-                if (result.isConfirmed) {
-                    const { email, password } = result.value;
-                    fetch(`${API_URL}/auth/login`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, password })
-                    }).then(res => {
-                        if (!res.ok) throw new Error('Login failed');
-                        return res.json();
-                    }).then(data => {
-                        localStorage.setItem('token', data.token);
-                        token = data.token;
-                        showSuccess('Success!', 'Logged in successfully');
-                        loadSites();
-                    }).catch(error => {
-                        showError(error.message || 'Login failed. Please try again');
-                    });
-                }
-            });
+            // Show beautiful login modal
+            showLoginModal();
         } else {
-            loadSites();
+            verifyTokenAndLoad();
+        }
+        
+        function showLoginModal() {
+            const email = prompt('🔐 Admin Email:', 'admin@example.com');
+            const password = prompt('🔑 Password:', 'admin123');
+            
+            if (email && password) {
+                fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.token) {
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('adminName', data.user.name);
+                        token = data.token;
+                        document.getElementById('adminName').innerText = data.user.name;
+                        loadDashboard();
+                    } else {
+                        alert('❌ Login failed! Please check your credentials.');
+                        showLoginModal();
+                    }
+                })
+                .catch(() => {
+                    alert('❌ Network error! Please try again.');
+                    showLoginModal();
+                });
+            }
+        }
+        
+        async function verifyTokenAndLoad() {
+            try {
+                // Try to load sites to verify token
+                const res = await fetch(`${API_URL}/sites/list`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (res.status === 401) {
+                    localStorage.removeItem('token');
+                    showLoginModal();
+                } else {
+                    const adminName = localStorage.getItem('adminName') || 'Admin';
+                    document.getElementById('adminName').innerText = adminName;
+                    loadDashboard();
+                }
+            } catch (err) {
+                console.error('Token verification failed:', err);
+                showLoginModal();
+            }
+        }
+        
+        async function loadDashboard() {
+            await Promise.all([
+                loadSites(),
+                loadStats()
+            ]);
         }
         
         async function createSite() {
-            const name = document.getElementById('siteName').value.trim();
-            const domain = document.getElementById('siteDomain').value.trim();
+            const name = document.getElementById('siteName').value;
+            const domain = document.getElementById('siteDomain').value;
             
-            if (!name) {
-                showError('Please enter site name');
+            if (!name || !domain) {
+                alert('⚠️ Please fill both Site Name and Domain!');
                 return;
             }
             
-            if (!domain) {
-                showError('Please enter domain');
-                return;
-            }
-            
-            const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
-            if (!domainRegex.test(domain)) {
-                showError('Please enter a valid domain (e.g., example.com)');
-                return;
-            }
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+            btn.disabled = true;
             
             try {
                 const res = await fetch(`${API_URL}/sites/create`, {
@@ -143,56 +354,40 @@
                     body: JSON.stringify({ name, domain })
                 });
                 
-                if (!res.ok) throw new Error('Failed to create site');
-                
                 const data = await res.json();
                 
-                Swal.fire({
-                    title: 'Success!',
-                    html: `Site created successfully!<br><br><strong>API Key:</strong><br><code>${data.apiKey}</code><br><br><small>Share this with the website owner</small>`,
-                    icon: 'success',
-                    allowOutsideClick: false
-                });
-                
-                document.getElementById('siteName').value = '';
-                document.getElementById('siteDomain').value = '';
-                loadSites();
-            } catch (error) {
-                showError(error.message || 'Failed to create site');
+                if (res.ok) {
+                    alert(`✅ Site "${name}" created successfully!\n\n🔑 API Key: ${data.apiKey}\n\n📋 Save this key to embed chat widget on your website.`);
+                    document.getElementById('siteName').value = '';
+                    document.getElementById('siteDomain').value = '';
+                    loadSites();
+                    loadStats();
+                } else {
+                    alert('❌ Error: ' + (data.error || 'Failed to create site'));
+                }
+            } catch (err) {
+                alert('❌ Network error: ' + err.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         }
         
         async function addSupport() {
             const siteId = document.getElementById('siteSelect').value;
-            const name = document.getElementById('supportName').value.trim();
-            const email = document.getElementById('supportEmail').value.trim();
-            const password = document.getElementById('supportPassword').value.trim();
+            const name = document.getElementById('supportName').value;
+            const email = document.getElementById('supportEmail').value;
+            const password = document.getElementById('supportPassword').value;
             
-            if (!siteId) {
-                showError('Please select a site');
+            if (!siteId || !name || !email || !password) {
+                alert('⚠️ Please fill all fields!');
                 return;
             }
             
-            if (!name) {
-                showError('Please enter full name');
-                return;
-            }
-            
-            if (!email) {
-                showError('Please enter email');
-                return;
-            }
-            
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(email)) {
-                showError('Please enter a valid email address');
-                return;
-            }
-            
-            if (!password || password.length < 6) {
-                showError('Password must be at least 6 characters');
-                return;
-            }
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+            btn.disabled = true;
             
             try {
                 const res = await fetch(`${API_URL}/sites/add-support`, {
@@ -204,15 +399,22 @@
                     body: JSON.stringify({ siteId, name, email, password })
                 });
                 
-                if (!res.ok) throw new Error('Failed to add support user');
+                const data = await res.json();
                 
-                showSuccess('Success!', 'Support user added successfully');
-                
-                document.getElementById('supportName').value = '';
-                document.getElementById('supportEmail').value = '';
-                document.getElementById('supportPassword').value = '';
-            } catch (error) {
-                showError(error.message || 'Failed to add support user');
+                if (res.ok) {
+                    alert(`✅ Support agent "${name}" added successfully!\n\n📧 Email: ${email}\n🔑 Password: ${password}`);
+                    document.getElementById('supportName').value = '';
+                    document.getElementById('supportEmail').value = '';
+                    document.getElementById('supportPassword').value = '';
+                    loadStats();
+                } else {
+                    alert('❌ Error: ' + (data.error || 'Failed to add support agent'));
+                }
+            } catch (err) {
+                alert('❌ Network error: ' + err.message);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
         }
         
@@ -221,41 +423,110 @@
                 const res = await fetch(`${API_URL}/sites/list`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
-                if (!res.ok) throw new Error('Failed to load sites');
-                
                 const sites = await res.json();
-                console.log('Sites loaded:', sites);
                 
                 const siteSelect = document.getElementById('siteSelect');
                 const sitesList = document.getElementById('sitesList');
                 
-                siteSelect.innerHTML = '<option value="">Select Site</option>';
-                sitesList.innerHTML = '';
+                siteSelect.innerHTML = '<option value="">🌐 Choose a site...</option>';
                 
-                if (!sites || sites.length === 0) {
-                    sitesList.innerHTML = '<p class="text-gray-500">No sites found. Create one first.</p>';
+                if (sites.length === 0) {
+                    sitesList.innerHTML = `
+                        <div class="text-center py-12 bg-gray-50 rounded-xl">
+                            <i class="fas fa-folder-open text-5xl text-gray-300 mb-3"></i>
+                            <p class="text-gray-500">No sites created yet. Create your first site above!</p>
+                        </div>
+                    `;
                     return;
                 }
                 
+                sitesList.innerHTML = '';
+                
                 sites.forEach(site => {
-                    const siteId = site._id || site.id;
-                    console.log('Adding site option with ID:', siteId, 'Site:', site);
-                    siteSelect.innerHTML += `<option value="${siteId}">${site.name} </option>`;
+                    siteSelect.innerHTML += `<option value="${site.id}">🏢 ${site.name} (${site.domain})</option>`;
+                    
                     sitesList.innerHTML += `
-                        <div class="border-b py-3">
-                            <p><strong>${site.name}</strong> - ${site.domain}</p>
-                            <p class="text-sm text-gray-600">Site ID: <code>${siteId}</code></p>
-                            <p class="text-sm text-gray-600">API Key: <code>${site.apiKey}</code></p>
-                            <p class="text-sm">JS Snippet: <code>&lt;script src="${API_URL.replace('/api', '')}/widget.js" data-chat-widget data-api-key="${site.apiKey}"&gt;&lt;/script&gt;</code></p>
+                        <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="text-lg font-bold text-gray-800">
+                                        <i class="fas fa-globe text-blue-500 mr-2"></i>${escapeHtml(site.name)}
+                                    </h3>
+                                    <p class="text-gray-500 text-sm mt-1">
+                                        <i class="fas fa-link mr-1"></i>${escapeHtml(site.domain)}
+                                    </p>
+                                </div>
+                                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                    <i class="fas fa-check-circle mr-1"></i>Active
+                                </span>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 mt-3">
+                                <p class="text-xs text-gray-500 mb-1">
+                                    <i class="fas fa-key mr-1"></i>API Key:
+                                </p>
+                                <code class="text-sm bg-white px-2 py-1 rounded border break-all block font-mono">${site.apiKey}</code>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 mt-3">
+                                <p class="text-xs text-gray-500 mb-1">
+                                    <i class="fas fa-code mr-1"></i>Integration Code:
+                                </p>
+                                <code class="text-sm bg-white px-2 py-1 rounded border break-all block font-mono" style="font-size: 11px;">
+                                    &lt;script src="http://localhost:3000/widget.js" data-chat-widget data-api-key="${site.apiKey}"&gt;&lt;/script&gt;
+                                </code>
+                                <button onclick="copyToClipboard('${site.apiKey}')" 
+                                        class="mt-2 text-xs bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition">
+                                    <i class="fas fa-copy mr-1"></i>Copy Code
+                                </button>
+                            </div>
                         </div>
                     `;
                 });
-            } catch (error) {
-                console.error('Error loading sites:', error);
-                showError('Failed to load sites');
+            } catch (err) {
+                console.error('Load sites error:', err);
+                document.getElementById('sitesList').innerHTML = `
+                    <div class="text-center py-12 text-red-500">
+                        <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                        <p>Failed to load sites. Please refresh the page.</p>
+                    </div>
+                `;
             }
+        }
+        
+        async function loadStats() {
+            try {
+                const sitesRes = await fetch(`${API_URL}/sites/list`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const sites = await sitesRes.json();
+                document.getElementById('totalSites').innerText = sites.length;
+                
+                // For demo, setting placeholder stats
+                document.getElementById('totalAgents').innerText = '0';
+                document.getElementById('activeChats').innerText = '0';
+                document.getElementById('totalMessages').innerText = '0';
+                
+            } catch (err) {
+                console.error('Load stats error:', err);
+            }
+        }
+        
+        function copyToClipboard(apiKey) {
+            const code = `<script src="http://localhost:3000/widget.js" data-chat-widget data-api-key="${apiKey}"><\/script>`;
+            navigator.clipboard.writeText(code);
+            alert('✅ Integration code copied to clipboard!');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('adminName');
+            location.reload();
         }
     </script>
 </body>
-</html> 
+</html>
