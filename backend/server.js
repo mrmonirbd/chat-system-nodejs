@@ -1,45 +1,300 @@
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
-const mongoose = require('mongoose');
+const { Sequelize, DataTypes } = require('sequelize');
 const cors = require('cors');
+const path = require('path');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+  cors: { origin: "*", methods: ["GET", "POST"] }
+});
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../admin-panel')));
+app.use('/frontend', express.static(path.join(__dirname, '../frontend')));
+
+// MySQL Connection
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
+  {
+    host: process.env.DB_HOST,
+    dialect: 'mysql',
+    logging: false
+  }
+);
+
+// Test Connection
+sequelize.authenticate()
+  .then(() => console.log(' MySQL connected'))
+  .catch(err => console.log(' MySQL error:', err));
+
+// ========== MODELS ==========
+
+const User = sequelize.define('User', {
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  name: { type: DataTypes.STRING, allowNull: false },
+  email: { type: DataTypes.STRING, allowNull: false, unique: true },
+  password: { type: DataTypes.STRING, allowNull: false },
+  role: { type: DataTypes.ENUM('admin', 'support'), defaultValue: 'support' },
+  isActive: { type: DataTypes.BOOLEAN, defaultValue: true }
+}, { timestamps: true });
+
+const Site = sequelize.define('Site', {
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  name: { type: DataTypes.STRING, allowNull: false },
+  domain: { type: DataTypes.STRING, allowNull: false, unique: true },
+  apiKey: { type: DataTypes.STRING, allowNull: false, unique: true, defaultValue: () => uuidv4() },
+  widgetColor: { type: DataTypes.STRING, defaultValue: '#3B82F6' },
+  widgetPosition: { type: DataTypes.STRING, defaultValue: 'bottom-right' },
+  greetingMessage: { type: DataTypes.STRING, defaultValue: 'Hello! How can we help you?' }
+}, { timestamps: true });
+
+const Thread = sequelize.define('Thread', {
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  visitorId: { type: DataTypes.STRING, allowNull: false },
+  visitorName: { type: DataTypes.STRING, defaultValue: 'Guest' },
+  visitorEmail: { type: DataTypes.STRING },
+  status: { type: DataTypes.ENUM('open', 'closed', 'pending'), defaultValue: 'pending' },
+  lastMessageAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, { timestamps: true });
+
+const Message = sequelize.define('Message', {
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  sender: { type: DataTypes.ENUM('visitor', 'support'), allowNull: false },
+  senderId: { type: DataTypes.STRING },
+  message: { type: DataTypes.TEXT, allowNull: false },
+  read: { type: DataTypes.BOOLEAN, defaultValue: false }
+}, { timestamps: true });
+
+// ========== RELATIONSHIPS ==========
+
+Site.hasMany(User, { foreignKey: 'siteId' });
+User.belongsTo(Site, { foreignKey: 'siteId' });
+
+Site.hasMany(Thread, { foreignKey: 'siteId' });
+Thread.belongsTo(Site, { foreignKey: 'siteId' });
+
+Thread.hasMany(Message, { foreignKey: 'threadId' });
+Message.belongsTo(Thread, { foreignKey: 'threadId' });
+
+User.hasMany(Thread, { as: 'AssignedThreads', foreignKey: 'assignedTo' });
+Thread.belongsTo(User, { as: 'AssignedSupport', foreignKey: 'assignedTo' });
+
+// ========== SYNC DATABASE ==========
+sequelize.sync({ alter: true }).then(() => {
+  console.log('MySQL tables created/updated');
+});
+
+// ========== MIDDLEWARE ==========
+const authMiddleware = (req, res, next) => {
+  const token = req.header('Authorization')?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: 'No token provided' });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// ========== ROUTES ==========
+
+// Auth Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
+    
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chatsystem', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
+// Create Site (Admin only)
+app.post('/api/sites/create', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    const { name, domain } = req.body;
+    const site = await Site.create({ name, domain, apiKey: uuidv4() });
+    res.json({ site, apiKey: site.apiKey });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// Models
-const Site = require('./models/Site');
-const Thread = require('./models/Thread');
-const Message = require('./models/Message');
-const User = require('./models/User');
+// List Sites
+app.get('/api/sites/list', authMiddleware, async (req, res) => {
+  try {
+    const sites = await Site.findAll();
+    res.json(sites);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-// Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/threads', require('./routes/threads'));
-app.use('/api/messages', require('./routes/messages'));
-app.use('/api/sites', require('./routes/sites'));
+// Add Support User
+app.post('/api/sites/add-support', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    const { siteId, name, email, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({ name, email, password: hashedPassword, role: 'support', siteId });
+    res.json({ message: 'Support user added', user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-// Socket.io logic
-require('./socket')(io);
+// Site Config (for widget)
+app.get('/api/sites/config/:apiKey', async (req, res) => {
+  try {
+    const site = await Site.findOne({ where: { apiKey: req.params.apiKey } });
+    if (!site) return res.status(404).json({ error: 'Invalid API key' });
+    res.json({ siteId: site.id, settings: site });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
+// Create Thread
+app.post('/api/threads/create', async (req, res) => {
+  try {
+    const { siteId, visitorId, visitorName, visitorEmail } = req.body;
+    let thread = await Thread.findOne({ where: { siteId, visitorId, status: { [Op.ne]: 'closed' } } });
+    if (!thread) {
+      thread = await Thread.create({ siteId, visitorId, visitorName, visitorEmail });
+    }
+    res.json({ threadId: thread.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get Threads by Site
+app.get('/api/threads/site/:siteId', async (req, res) => {
+  try {
+    const threads = await Thread.findAll({ 
+      where: { siteId: req.params.siteId },
+      order: [['lastMessageAt', 'DESC']],
+      include: [{ model: User, as: 'AssignedSupport' }]
+    });
+    res.json(threads);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get Messages by Thread
+app.get('/api/threads/:threadId/messages', async (req, res) => {
+  try {
+    const messages = await Message.findAll({ 
+      where: { threadId: req.params.threadId },
+      order: [['createdAt', 'ASC']]
+    });
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Serve admin panel
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../admin-panel/index.html'));
+});
+app.get('/support-panel', (req, res) => {
+  res.sendFile(path.join(__dirname, '../admin-panel/support-panel.html'));
+});
+app.get('/widget.js', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/widget.js'));
+});
+app.get('/widget.css', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/widget.css'));
+});
+
+// ========== SOCKET.IO ==========
+io.on('connection', (socket) => {
+  console.log('New connection:', socket.id);
+
+  socket.on('support-auth', (token) => {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.supportUser = decoded;
+      socket.join(`support-${decoded.id}`);
+      console.log(`Support ${decoded.email} connected`);
+    } catch (err) {
+      console.error('Invalid support token');
+    }
+  });
+
+  socket.on('join-site', (siteId) => {
+    if (socket.supportUser) {
+      socket.join(`site-${siteId}`);
+    }
+  });
+
+  socket.on('join-thread', async (threadId, visitorId) => {
+    socket.threadId = threadId;
+    socket.join(`thread-${threadId}`);
+    const messages = await Message.findAll({ where: { threadId }, order: [['createdAt', 'ASC']] });
+    socket.emit('previous-messages', messages);
+  });
+
+  socket.on('visitor-message', async (data) => {
+    const { threadId, message, visitorId } = data;
+    const newMessage = await Message.create({ threadId, sender: 'visitor', senderId: visitorId, message });
+    await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadId } });
+    const thread = await Thread.findByPk(threadId);
+    io.to(`thread-${threadId}`).emit('new-message', newMessage);
+    if (thread) {
+      io.to(`site-${thread.siteId}`).emit('new-thread-message', { threadId, message: newMessage, thread });
+    }
+  });
+
+  socket.on('support-message', async (data) => {
+    const { threadId, message, supportId } = data;
+    const newMessage = await Message.create({ threadId, sender: 'support', senderId: supportId, message });
+    await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadId } });
+    io.to(`thread-${threadId}`).emit('new-message', newMessage);
+    socket.emit('message-sent', newMessage);
+  });
+
+  socket.on('pick-thread', async (threadId) => {
+    if (!socket.supportUser) return;
+    await Thread.update({ assignedTo: socket.supportUser.id, status: 'open' }, { where: { id: threadId } });
+    const thread = await Thread.findByPk(threadId);
+    io.to(`support-${socket.supportUser.id}`).emit('thread-assigned', thread);
+    if (thread) io.to(`site-${thread.siteId}`).emit('thread-updated', thread);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(' Disconnected:', socket.id);
+  });
+});
+
+// Start Server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(` Server running on http://localhost:${PORT}`);
+  console.log(` Admin Panel: http://localhost:${PORT}/admin`);
+  console.log(` Support Panel: http://localhost:${PORT}/support-panel`);
 });
