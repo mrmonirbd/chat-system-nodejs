@@ -8,6 +8,7 @@
     <!-- Tailwind CSS + Font Awesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
     
     <style>
@@ -264,6 +265,46 @@
         const API_URL = 'http://localhost:3000/api';
         let token = localStorage.getItem('token');
         
+        // SweetAlert2 Helpers
+        const showError = (message) => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: message,
+                position: 'top-right',
+                toast: true,
+                timer: 5000,
+                timerProgressBar: true,
+                showConfirmButton: false
+            });
+        };
+        
+        const showSuccess = (title, text = '') => {
+            Swal.fire({
+                icon: 'success',
+                title: title,
+                text: text,
+                position: 'top-right',
+                toast: true,
+                timer: 3000,
+                timerProgressBar: true,
+                showConfirmButton: false
+            });
+        };
+        
+        const showWarning = (message) => {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Warning',
+                text: message,
+                position: 'top-right',
+                toast: true,
+                timer: 4000,
+                timerProgressBar: true,
+                showConfirmButton: false
+            });
+        };
+        
         // Check authentication
         if (!token) {
             // Show beautiful login modal
@@ -273,33 +314,53 @@
         }
         
         function showLoginModal() {
-            const email = prompt('🔐 Admin Email:', 'admin@example.com');
-            const password = prompt('🔑 Password:', 'admin123');
-            
-            if (email && password) {
-                fetch(`${API_URL}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.token) {
-                        localStorage.setItem('token', data.token);
-                        localStorage.setItem('adminName', data.user.name);
-                        token = data.token;
-                        document.getElementById('adminName').innerText = data.user.name;
-                        loadDashboard();
-                    } else {
-                        alert('❌ Login failed! Please check your credentials.');
-                        showLoginModal();
+            Swal.fire({
+                title: 'Admin Login',
+                html: `
+                    <input type="email" id="loginEmail" class="swal2-input" placeholder="Admin Email" value="admin@example.com">
+                    <input type="password" id="loginPassword" class="swal2-input" placeholder="Password" value="admin123">
+                `,
+                allowOutsideClick: false,
+                didOpen: (modal) => {
+                    document.getElementById('loginEmail').focus();
+                },
+                preConfirm: () => {
+                    const email = document.getElementById('loginEmail').value;
+                    const password = document.getElementById('loginPassword').value;
+                    
+                    if (!email || !password) {
+                        Swal.showValidationMessage('Please enter email and password');
+                        return false;
                     }
-                })
-                .catch(() => {
-                    alert('❌ Network error! Please try again.');
-                    showLoginModal();
-                });
-            }
+                    return { email, password };
+                }
+            }).then(result => {
+                if (result.isConfirmed) {
+                    const { email, password } = result.value;
+                    fetch(`${API_URL}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.token) {
+                            localStorage.setItem('token', data.token);
+                            localStorage.setItem('adminName', data.user.name);
+                            token = data.token;
+                            document.getElementById('adminName').innerText = data.user.name;
+                            loadDashboard();
+                        } else {
+                            showError('Login failed! Please check your credentials.');
+                            showLoginModal();
+                        }
+                    })
+                    .catch(() => {
+                        showError('Network error! Please try again.');
+                        showLoginModal();
+                    });
+                }
+            });
         }
         
         async function verifyTokenAndLoad() {
@@ -335,7 +396,7 @@
             const domain = document.getElementById('siteDomain').value;
             
             if (!name || !domain) {
-                alert('⚠️ Please fill both Site Name and Domain!');
+                showWarning('Please fill both Site Name and Domain!');
                 return;
             }
             
@@ -357,16 +418,21 @@
                 const data = await res.json();
                 
                 if (res.ok) {
-                    alert(`✅ Site "${name}" created successfully!\n\n🔑 API Key: ${data.apiKey}\n\n📋 Save this key to embed chat widget on your website.`);
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        html: `Site "<strong>${escapeHtml(name)}</strong>" created successfully!<br><br>🔑 <strong>API Key:</strong><br><code style="background: #f0f0f0; padding: 10px; border-radius: 5px; display: block; margin-top: 10px; word-break: break-all;">${data.apiKey}</code><br><br><small>Save this key to embed chat widget on your website.</small>`,
+                        allowOutsideClick: false
+                    });
                     document.getElementById('siteName').value = '';
                     document.getElementById('siteDomain').value = '';
                     loadSites();
                     loadStats();
                 } else {
-                    alert('❌ Error: ' + (data.error || 'Failed to create site'));
+                    showError(data.error || 'Failed to create site');
                 }
             } catch (err) {
-                alert('❌ Network error: ' + err.message);
+                showError('Network error: ' + err.message);
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -380,7 +446,7 @@
             const password = document.getElementById('supportPassword').value;
             
             if (!siteId || !name || !email || !password) {
-                alert('⚠️ Please fill all fields!');
+                showWarning('Please fill all fields!');
                 return;
             }
             
@@ -402,16 +468,16 @@
                 const data = await res.json();
                 
                 if (res.ok) {
-                    alert(`✅ Support agent "${name}" added successfully!\n\n📧 Email: ${email}\n🔑 Password: ${password}`);
+                    showSuccess('Support agent added!', `${name} (${email}) added successfully!`);
                     document.getElementById('supportName').value = '';
                     document.getElementById('supportEmail').value = '';
                     document.getElementById('supportPassword').value = '';
                     loadStats();
                 } else {
-                    alert('❌ Error: ' + (data.error || 'Failed to add support agent'));
+                    showError(data.error || 'Failed to add support agent');
                 }
             } catch (err) {
-                alert('❌ Network error: ' + err.message);
+                showError('Network error: ' + err.message);
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -494,26 +560,74 @@
         
         async function loadStats() {
             try {
+                // Load sites count
                 const sitesRes = await fetch(`${API_URL}/sites/list`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const sites = await sitesRes.json();
                 document.getElementById('totalSites').innerText = sites.length;
                 
-                // For demo, setting placeholder stats
-                document.getElementById('totalAgents').innerText = '0';
-                document.getElementById('activeChats').innerText = '0';
-                document.getElementById('totalMessages').innerText = '0';
+                // Load support agents count from new API
+                try {
+                    const agentsRes = await fetch(`${API_URL}/support-agents/count`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    
+                    if (agentsRes.ok) {
+                        const agentsData = await agentsRes.json();
+                        document.getElementById('totalAgents').innerText = agentsData.count;
+                    } else {
+                        // Fallback: count from sites if API fails
+                        let totalAgents = 0;
+                        for (const site of sites) {
+                            try {
+                                const siteAgentsRes = await fetch(`${API_URL}/sites/${site.id}/support-agents`, {
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                if (siteAgentsRes.ok) {
+                                    const agents = await siteAgentsRes.json();
+                                    totalAgents += agents.length;
+                                }
+                            } catch (err) {
+                                console.log(`No agents found for site ${site.id}`);
+                            }
+                        }
+                        document.getElementById('totalAgents').innerText = totalAgents;
+                    }
+                } catch (err) {
+                    console.error('Error loading agents:', err);
+                    document.getElementById('totalAgents').innerText = '0';
+                }
+                
+                // Load active chats count (from threads table)
+                try {
+                    // You can implement this later
+                    document.getElementById('activeChats').innerText = '0';
+                } catch (err) {
+                    document.getElementById('activeChats').innerText = '0';
+                }
+                
+                // Load total messages count
+                try {
+                    // You can implement this later
+                    document.getElementById('totalMessages').innerText = '0';
+                } catch (err) {
+                    document.getElementById('totalMessages').innerText = '0';
+                }
                 
             } catch (err) {
                 console.error('Load stats error:', err);
+                document.getElementById('totalSites').innerText = '0';
+                document.getElementById('totalAgents').innerText = '0';
+                document.getElementById('activeChats').innerText = '0';
+                document.getElementById('totalMessages').innerText = '0';
             }
         }
         
         function copyToClipboard(apiKey) {
             const code = `<script src="http://localhost:3000/widget.js" data-chat-widget data-api-key="${apiKey}"><\/script>`;
             navigator.clipboard.writeText(code);
-            alert('✅ Integration code copied to clipboard!');
+            showSuccess('Copied!', 'Integration code copied to clipboard');
         }
         
         function escapeHtml(text) {

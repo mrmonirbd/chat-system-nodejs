@@ -362,3 +362,33 @@ server.listen(PORT, () => {
   console.log(` Admin Panel: http://localhost:${PORT}/admin`);
   console.log(` Support Panel: http://localhost:${PORT}/support-panel`);
 });
+
+
+// Get all support agents (for stats)
+app.get('/api/support-agents/count', authMiddleware, async (req, res) => {
+    try {
+        const agents = await User.findAll({
+            where: { role: 'support' },
+            attributes: ['id', 'name', 'email', 'siteId']
+        });
+        res.json({ count: agents.length, agents });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get support agents by site
+app.get('/api/sites/:siteId/support-agents', authMiddleware, async (req, res) => {
+    try {
+        const agents = await User.findAll({
+            where: { 
+                siteId: req.params.siteId,
+                role: 'support'
+            },
+            attributes: ['id', 'name', 'email', 'isActive']
+        });
+        res.json(agents);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
