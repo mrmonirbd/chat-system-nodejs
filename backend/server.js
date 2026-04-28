@@ -49,8 +49,8 @@ const sequelize = new Sequelize(
 );
 
 sequelize.authenticate()
-  .then(() => console.log('✅ MySQL connected'))
-  .catch(err => console.log('❌ MySQL error:', err));
+  .then(() => console.log(' MySQL connected'))
+  .catch(err => console.log('MySQL error:', err));
 
 // ========== MODELS ==========
 const User = sequelize.define('User', {
@@ -107,9 +107,11 @@ User.hasMany(Thread, { as: 'AssignedThreads', foreignKey: 'assignedTo' });
 Thread.belongsTo(User, { as: 'AssignedSupport', foreignKey: 'assignedTo' });
 
 // ========== SYNC DATABASE ==========
-sequelize.sync({ alter: true }).then(() => {
-  console.log('✅ MySQL tables created/updated');
-});
+// sequelize.sync({ alter: false }).then(() => {
+//   console.log(' MySQL tables ready');
+// }).catch(err => {
+//   console.error(' Sync error:', err);
+// });
 
 // ========== MIDDLEWARE ==========
 const authMiddleware = (req, res, next) => {
@@ -273,7 +275,7 @@ app.post('/api/threads/create', async (req, res) => {
     
     if (!thread) {
       thread = await Thread.create({ siteId, visitorId, visitorName: visitorName || 'Guest', visitorEmail, status: 'pending', lastMessageAt: new Date() });
-      console.log('✅ New thread created:', thread.id);
+      console.log('New thread created:', thread.id);
     }
     
     res.json({ threadId: thread.id });
@@ -329,9 +331,9 @@ io.on('connection', (socket) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.supportUser = decoded;
       socket.join(`support-${decoded.id}`);
-      console.log(`✅ Support ${decoded.email} connected`);
+      console.log(`Support ${decoded.email} connected`);
     } catch (err) {
-      console.error('❌ Invalid support token');
+      console.error('Invalid support token');
     }
   });
 
@@ -368,7 +370,7 @@ io.on('connection', (socket) => {
       const { threadId, message, visitorId } = data;
       const threadIdNum = parseInt(threadId);
       
-      console.log(`📨 Visitor message in thread ${threadIdNum}: ${message}`);
+      console.log(`Visitor message in thread ${threadIdNum}: ${message}`);
       
       // Save message to database
       const newMessage = await Message.create({ 
@@ -378,7 +380,7 @@ io.on('connection', (socket) => {
         message 
       });
       
-      console.log(`✅ Visitor message saved, ID: ${newMessage.id}`);
+      console.log(`Visitor message saved, ID: ${newMessage.id}`);
       
       // Update thread last message time
       await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
@@ -395,7 +397,7 @@ io.on('connection', (socket) => {
       
       // Broadcast to ALL clients in this thread (visitor + support)
       io.to(`thread-${threadIdNum}`).emit('new-message', messageData);
-      console.log(`📤 Broadcasted visitor message to thread ${threadIdNum}`);
+      console.log(`Broadcasted visitor message to thread ${threadIdNum}`);
       
     } catch (err) {
       console.error('Visitor message error:', err);
@@ -408,7 +410,7 @@ io.on('connection', (socket) => {
       const { threadId, message, supportId } = data;
       const threadIdNum = parseInt(threadId);
       
-      console.log(`📨 Support message in thread ${threadIdNum}: ${message}`);
+      console.log(`Support message in thread ${threadIdNum}: ${message}`);
       console.log(`Support ID: ${supportId}, Current User: ${socket.supportUser?.id}`);
       
       // Save message to database
@@ -419,7 +421,7 @@ io.on('connection', (socket) => {
         message 
       });
       
-      console.log(`✅ Support message saved, ID: ${newMessage.id}`);
+      console.log(`Support message saved, ID: ${newMessage.id}`);
       
       // Update thread last message time
       await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
@@ -436,7 +438,7 @@ io.on('connection', (socket) => {
       
       // Broadcast to ALL clients in this thread (visitor + support)
       io.to(`thread-${threadIdNum}`).emit('new-message', messageData);
-      console.log(`📤 Broadcasted support message to thread ${threadIdNum}`);
+      console.log(`Broadcasted support message to thread ${threadIdNum}`);
       
       // Send confirmation to sender
       socket.emit('message-sent', messageData);
@@ -489,7 +491,7 @@ io.on('connection', (socket) => {
 // Start Server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📊 Admin Panel: http://localhost:${PORT}/admin`);
-  console.log(`💬 Support Panel: http://localhost:${PORT}/support-panel`);
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Admin Panel: http://localhost:${PORT}/admin`);
+  console.log(`Support Panel: http://localhost:${PORT}/support-panel`);
 });
