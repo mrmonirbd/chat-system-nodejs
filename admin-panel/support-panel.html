@@ -444,17 +444,43 @@
         }
         
         function sendMessage() {
-            const message = document.getElementById('messageInput').value;
-            if (!message.trim() || !currentThreadId) return;
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value;
             
-            if (socket) {
-                socket.emit('support-message', {
-                    threadId: currentThreadId,
-                    message: message,
-                    supportId: currentAgent?.id
-                });
-                document.getElementById('messageInput').value = '';
+            if (!message.trim() || !currentThreadId) {
+                console.log('Cannot send: empty message or no thread selected');
+                return;
             }
+            
+            if (!socket) {
+                console.error('Socket not connected');
+                alert('Not connected to chat server. Please refresh.');
+                return;
+            }
+            
+            console.log('Sending message:', { threadId: currentThreadId, message, supportId: currentAgent?.id });
+            
+            // Send message
+            socket.emit('support-message', {
+                threadId: currentThreadId,
+                message: message,
+                supportId: currentAgent?.id
+            });
+            
+            // Clear input
+            messageInput.value = '';
+            
+            // Optional: Add message to UI immediately (optimistic update)
+            const tempMessage = {
+                id: Date.now(),
+                threadId: currentThreadId,
+                sender: 'support',
+                senderId: currentAgent?.id,
+                message: message,
+                createdAt: new Date().toISOString(),
+                read: false
+            };
+            addMessageToChat(tempMessage);
         }
         
         function addMessageToChat(msg) {
@@ -496,6 +522,8 @@
                 sendMessage();
             }
         });
+
+        
     </script>
 </body>
 </html>

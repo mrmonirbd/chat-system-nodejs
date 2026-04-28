@@ -390,12 +390,38 @@ io.on('connection', (socket) => {
   });
 
   socket.on('support-message', async (data) => {
-    const { threadId, message, supportId } = data;
-    const newMessage = await Message.create({ threadId, sender: 'support', senderId: supportId, message });
-    await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadId } });
-    io.to(`thread-${threadId}`).emit('new-message', newMessage);
-    socket.emit('message-sent', newMessage);
-  });
+    try {
+        const { threadId, message, supportId } = data;
+        const threadIdNum = parseInt(threadId);
+        
+        console.log('📨 Support message received:', { threadId: threadIdNum, message, supportId });
+        
+        // Save message to database
+        const newMessage = await Message.create({ 
+            threadId: threadIdNum, 
+            sender: 'support', 
+            senderId: supportId, 
+            message 
+        });
+        
+        console.log('✅ Support message saved, ID:', newMessage.id);
+        
+        // Update thread last message time
+        await Thread.update(
+            { lastMessageAt: new Date() }, 
+            { where: { id: threadIdNum } }
+        );
+        
+        // Broadcast to visitor
+        io.to(`thread-${threadIdNum}`).emit('new-message', newMessage);
+        
+        // Also send back to support panel for confirmation
+        socket.emit('message-sent', newMessage);
+        
+    } catch (err) {
+        console.error('❌ Support message error:', err);
+    }
+});
 
   socket.on('pick-thread', async (threadId) => {
     if (!socket.supportUser) return;
@@ -484,4 +510,152 @@ app.get('/api/sites/:siteId', authMiddleware, async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+
+// ========== SOCKET.IO ==========
+io.on('connection', (socket) => {
+  console.log('🔌 New connection:', socket.id);
+
+  // Support authentication
+  socket.on('support-auth', (token) => {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.supportUser = decoded;
+      socket.join(`support-${decoded.id}`);
+      console.log(`✅ Support ${decoded.email} connected`);
+    } catch (err) {
+      console.error('❌ Invalid support token');
+    }
+  });
+
+  // Join site room
+  socket.on('join-site', (siteId) => {
+    if (socket.supportUser) {
+      socket.join(`site-${siteId}`);
+      console.log(`Support joined site-${siteId}`);
+    }
+  });
+
+  // Visitor joins thread
+  socket.on('join-thread', async (threadId, visitorId) => {
+    try {
+      const threadIdNum = parseInt(threadId);
+      socket.threadId = threadIdNum;
+      socket.join(`thread-${threadIdNum}`);
+      console.log(`User joined thread: ${threadIdNum}`);
+      
+      const messages = await Message.findAll({ 
+        where: { threadId: threadIdNum }, 
+        order: [['createdAt', 'ASC']] 
+      });
+      socket.emit('previous-messages', messages);
+    } catch (err) {
+      console.error('Join thread error:', err);
+    }
+  });
+
+  // Visitor message
+  socket.on('visitor-message', async (data) => {
+    try {
+      const { threadId, message, visitorId } = data;
+      const threadIdNum = parseInt(threadId);
+      
+      const newMessage = await Message.create({ 
+        threadId: threadIdNum, 
+        sender: 'visitor', 
+        senderId: visitorId, 
+        message 
+      });
+      
+      await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
+      
+      io.to(`thread-${threadIdNum}`).emit('new-message', newMessage);
+      console.log(`Visitor message saved in thread ${threadIdNum}`);
+      
+    } catch (err) {
+      console.error('Visitor message error:', err);
+    }
+  });
+
+  // Support message
+  socket.on('support-message', async (data) => {
+    try {
+      const { threadId, message, supportId } = data;
+      const threadIdNum = parseInt(threadId);
+      
+      console.log(`Support message in thread ${threadIdNum}: ${message}`);
+      
+      const newMessage = await Message.create({ 
+        threadId: threadIdNum, 
+        sender: 'support', 
+        senderId: supportId, 
+        message 
+      });
+      
+      console.log(`Support message saved, ID: ${newMessage.id}`);
+      
+      await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
+      
+      io.to(`thread-${threadIdNum}`).emit('new-message', newMessage);
+      socket.emit('message-sent', newMessage);
+      
+    } catch (err) {
+      console.error('Support message error:', err);
+    }
+  });
+
+  // Pick thread
+  socket.on('pick-thread', async (threadId) => {
+    if (!socket.supportUser) return;
+    
+    try {
+      const threadIdNum = parseInt(threadId);
+      await Thread.update({ 
+        assignedTo: socket.supportUser.id, 
+        status: 'open' 
+      }, { where: { id: threadIdNum } });
+      
+      const thread = await Thread.findByPk(threadIdNum);
+      io.to(`support-${socket.supportUser.id}`).emit('thread-assigned', thread);
+      
+      if (thread) {
+        io.to(`site-${thread.siteId}`).emit('thread-updated', thread);
+      }
+    } catch (err) {
+      console.error('Pick thread error:', err);
+    }
+  });
+
+  // ✅ TYPING INDICATOR - Support is typing (Visitor sees this)
+  socket.on('support-typing', async (data) => {
+    try {
+      const { threadId, isTyping } = data;
+      const threadIdNum = parseInt(threadId);
+      socket.to(`thread-${threadIdNum}`).emit('visitor-typing', { 
+        isTyping: isTyping,
+        message: isTyping ? 'Support is typing...' : ''
+      });
+    } catch (err) {
+      console.error('Support typing error:', err);
+    }
+  });
+
+  // ✅ TYPING INDICATOR - Visitor is typing (Support sees this)
+  socket.on('visitor-typing', async (data) => {
+    try {
+      const { threadId, isTyping } = data;
+      const threadIdNum = parseInt(threadId);
+      socket.to(`thread-${threadIdNum}`).emit('support-typing', { 
+        isTyping: isTyping,
+        message: isTyping ? 'Visitor is typing...' : ''
+      });
+    } catch (err) {
+      console.error('Visitor typing error:', err);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('🔌 Disconnected:', socket.id);
+  });
 });

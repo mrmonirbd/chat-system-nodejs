@@ -18,7 +18,11 @@
         return;
     }
     
-    console.log('✅ Chat widget v2.0 initializing');
+    console.log('✅ Chat widget v4.0 initializing');
+    
+    // Track message IDs to prevent duplicates
+    let receivedMessageIds = new Set();
+    let pendingMessage = null;
     
     function getVisitorId() {
         let visitorId = localStorage.getItem('chat_visitor_id');
@@ -41,6 +45,54 @@
             initWidget(data.settings);
         } catch (err) {
             console.error('❌ Config error:', err);
+        }
+    }
+    
+    function addTypingIndicator(messagesDiv) {
+        if (document.getElementById('typing-indicator')) return;
+        
+        const typingDiv = document.createElement('div');
+        typingDiv.id = 'typing-indicator';
+        typingDiv.className = 'typing-indicator-container';
+        typingDiv.style.cssText = 'margin: 10px 0; display: none; justify-content: flex-start;';
+        typingDiv.innerHTML = `
+            <div class="typing-bubble" style="background: #e5e7eb; padding: 10px 15px; border-radius: 18px; border-bottom-left-radius: 4px; display: flex; align-items: center; gap: 4px;">
+                <span style="width: 8px; height: 8px; background: #9ca3af; border-radius: 50%; display: inline-block; animation: typingBounce 1.4s infinite ease-in-out;"></span>
+                <span style="width: 8px; height: 8px; background: #9ca3af; border-radius: 50%; display: inline-block; animation: typingBounce 1.4s infinite ease-in-out; animation-delay: -0.32s;"></span>
+                <span style="width: 8px; height: 8px; background: #9ca3af; border-radius: 50%; display: inline-block; animation: typingBounce 1.4s infinite ease-in-out; animation-delay: -0.16s;"></span>
+                <span class="typing-text" style="font-size: 12px; color: #6b7280; margin-left: 8px;">Support is typing...</span>
+            </div>
+        `;
+        
+        if (!document.querySelector('#typing-animation-style')) {
+            const style = document.createElement('style');
+            style.id = 'typing-animation-style';
+            style.textContent = `
+                @keyframes typingBounce {
+                    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+                    30% { transform: translateY(-10px); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        messagesDiv.appendChild(typingDiv);
+    }
+    
+    function showTypingIndicator(show, message = 'Support is typing...') {
+        const indicator = document.getElementById('typing-indicator');
+        if (indicator) {
+            if (show) {
+                indicator.style.display = 'flex';
+                const textSpan = indicator.querySelector('.typing-text');
+                if (textSpan) textSpan.textContent = message;
+                clearTimeout(window.typingTimeout);
+                window.typingTimeout = setTimeout(() => {
+                    if (indicator) indicator.style.display = 'none';
+                }, 4000);
+            } else {
+                indicator.style.display = 'none';
+            }
         }
     }
     
@@ -71,14 +123,14 @@
         const toggle = document.getElementById('chat-toggle');
         const windowDiv = document.getElementById('chat-window');
         const close = document.getElementById('chat-close');
-        const input = document.getElementById('chat-input');
-        const send = document.getElementById('chat-send');
         const messagesDiv = document.getElementById('chat-messages');
         
         let isConnected = false;
         
+        addTypingIndicator(messagesDiv);
+        
         toggle.onclick = () => {
-            if (windowDiv.style.display === 'none') {
+            if (windowDiv.style.display === 'none' || windowDiv.style.display === '') {
                 windowDiv.style.display = 'flex';
                 if (!isConnected) connectToChat(messagesDiv);
             } else {
@@ -94,8 +146,8 @@
     async function connectToChat(messagesDiv) {
         try {
             messagesDiv.innerHTML = '<div style="text-align:center;padding:20px;">Connecting...</div>';
+            addTypingIndicator(messagesDiv);
             
-            // Create thread
             const response = await fetch(`${CONFIG.apiUrl}/api/threads/create`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -110,12 +162,7 @@
             CONFIG.threadId = data.threadId;
             console.log('✅ Thread:', CONFIG.threadId);
             
-            // Connect socket
-            const socketUrl = await loadSocketIO();
-            if (!socketUrl) {
-                messagesDiv.innerHTML = '<div style="text-align:center;color:red;padding:20px;">Failed to load chat library. Please refresh.</div>';
-                return;
-            }
+            await loadSocketIO();
             
             CONFIG.socket = io(CONFIG.apiUrl);
             
@@ -123,33 +170,92 @@
                 console.log('✅ Socket connected');
                 CONFIG.socket.emit('join-thread', CONFIG.threadId, CONFIG.visitorId);
                 messagesDiv.innerHTML = '';
+                addTypingIndicator(messagesDiv);
+                // Clear message ID set on reconnect
+                receivedMessageIds.clear();
             });
             
             CONFIG.socket.on('previous-messages', (messages) => {
                 messagesDiv.innerHTML = '';
-                messages.forEach(msg => addMessageToUI(messagesDiv, msg));
+                receivedMessageIds.clear();
+                messages.forEach(msg => {
+                    receivedMessageIds.add(msg.id);
+                    addMessageToUI(messagesDiv, msg, false);
+                });
+                addTypingIndicator(messagesDiv);
             });
             
+            // Handle new messages - check for duplicates
             CONFIG.socket.on('new-message', (msg) => {
-                addMessageToUI(messagesDiv, msg);
+                // Skip if we already have this message
+                if (receivedMessageIds.has(msg.id)) {
+                    console.log('Duplicate message ignored:', msg.id);
+                    return;
+                }
+                receivedMessageIds.add(msg.id);
+                showTypingIndicator(false);
+                addMessageToUI(messagesDiv, msg, false);
+            });
+            
+            CONFIG.socket.on('visitor-typing', (data) => {
+                if (data && data.isTyping) {
+                    showTypingIndicator(true, data.message || 'Support is typing...');
+                } else {
+                    showTypingIndicator(false);
+                }
             });
             
             CONFIG.socket.on('connect_error', (err) => {
                 console.error('Socket error:', err);
-                messagesDiv.innerHTML = '<div style="text-align:center;color:red;padding:20px;">Cannot connect to server. Make sure backend is running on port 3000.</div>';
+                messagesDiv.innerHTML = '<div style="text-align:center;color:red;padding:20px;">Cannot connect to server.</div>';
             });
             
-            // Setup send button
             const input = document.getElementById('chat-input');
             const send = document.getElementById('chat-send');
+            let typingTimeout;
+            
+            input.addEventListener('input', () => {
+                if (CONFIG.socket && CONFIG.threadId) {
+                    CONFIG.socket.emit('visitor-typing', {
+                        threadId: CONFIG.threadId,
+                        isTyping: true
+                    });
+                    
+                    clearTimeout(typingTimeout);
+                    typingTimeout = setTimeout(() => {
+                        if (CONFIG.socket) {
+                            CONFIG.socket.emit('visitor-typing', {
+                                threadId: CONFIG.threadId,
+                                isTyping: false
+                            });
+                        }
+                    }, 1000);
+                }
+            });
             
             send.onclick = () => {
                 if (input.value.trim() && CONFIG.socket) {
+                    const messageText = input.value;
+                    const tempId = 'temp_' + Date.now();
+                    
+                    // Add to UI immediately (optimistic)
+                    const tempMessage = {
+                        id: tempId,
+                        threadId: CONFIG.threadId,
+                        sender: 'visitor',
+                        senderId: CONFIG.visitorId,
+                        message: messageText,
+                        createdAt: new Date().toISOString()
+                    };
+                    addMessageToUI(messagesDiv, tempMessage, true);
+                    
+                    // Send to server
                     CONFIG.socket.emit('visitor-message', {
                         threadId: CONFIG.threadId,
-                        message: input.value,
+                        message: messageText,
                         visitorId: CONFIG.visitorId
                     });
+                    
                     input.value = '';
                 }
             };
@@ -178,23 +284,45 @@
         });
     }
     
-    function addMessageToUI(messagesDiv, msg) {
-        const div = document.createElement('div');
+    function addMessageToUI(messagesDiv, msg, isOptimistic = false) {
         const isVisitor = msg.sender === 'visitor';
+        const div = document.createElement('div');
+        div.id = `msg-${msg.id}`;
         div.style.marginBottom = '12px';
         div.style.display = 'flex';
         div.style.justifyContent = isVisitor ? 'flex-end' : 'flex-start';
+        
+        // Add optimistic class for visual feedback
+        const optimisticClass = isOptimistic ? 'opacity-70' : '';
+        
         div.innerHTML = `
-            <div style="max-width:75%; padding:10px 14px; border-radius:12px; background:${isVisitor ? '#3B82F6' : '#e5e7eb'}; color:${isVisitor ? 'white' : '#1f2937'};">
+            <div class="message-bubble ${optimisticClass}" style="max-width:75%; padding:10px 14px; border-radius:12px; background:${isVisitor ? '#3B82F6' : '#e5e7eb'}; color:${isVisitor ? 'white' : '#1f2937'}; word-wrap:break-word;">
                 ${escapeHtml(msg.message)}
-                <div style="font-size:10px; margin-top:4px; opacity:0.7;">${new Date(msg.createdAt).toLocaleTimeString()}</div>
+                <div style="font-size:10px; margin-top:4px; opacity:0.7;">
+                    ${isOptimistic ? 'Sending...' : new Date(msg.createdAt).toLocaleTimeString()}
+                </div>
             </div>
         `;
         messagesDiv.appendChild(div);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        
+        // If optimistic, update with real message when received
+        if (isOptimistic) {
+            setTimeout(() => {
+                const optimisticMsg = document.getElementById(`msg-${msg.id}`);
+                if (optimisticMsg) {
+                    optimisticMsg.style.opacity = '1';
+                    const timeSpan = optimisticMsg.querySelector('.message-bubble div:last-child');
+                    if (timeSpan) {
+                        timeSpan.innerHTML = new Date().toLocaleTimeString();
+                    }
+                }
+            }, 500);
+        }
     }
     
     function escapeHtml(text) {
+        if (!text) return '';
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
