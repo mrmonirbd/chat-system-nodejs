@@ -380,8 +380,8 @@ io.on('connection', (socket) => {
       const threadIdNum = parseInt(threadId);
 
       const roomName = `thread-${threadIdNum}`;
-const roomSize = io.sockets.adapter.rooms.get(roomName)?.size || 0;
-console.log(`📊 Room "${roomName}" has ${roomSize} clients`)
+     const roomSize = io.sockets.adapter.rooms.get(roomName)?.size || 0;
+      console.log(`📊 Room "${roomName}" has ${roomSize} clients`)
 
       console.log(`Visitor message in thread ${threadIdNum}: ${message}`);
       
