@@ -241,7 +241,7 @@
                 sites.forEach(site => {
                     const siteId = site._id || site.id;
                     console.log('Adding site option with ID:', siteId, 'Site:', site);
-                    siteSelect.innerHTML += `<option value="${siteId}">${site.name} (ID: ${siteId})</option>`;
+                    siteSelect.innerHTML += `<option value="${siteId}">${site.name} </option>`;
                     sitesList.innerHTML += `
                         <div class="border-b py-3">
                             <p><strong>${site.name}</strong> - ${site.domain}</p>
