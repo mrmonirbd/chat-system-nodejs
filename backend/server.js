@@ -318,6 +318,8 @@ app.get('/widget.css', (req, res) => {
 });
 
 // ========== SOCKET.IO (ONLY ONCE) ==========
+
+// ========== SOCKET.IO ==========
 io.on('connection', (socket) => {
   console.log('🔌 New connection:', socket.id);
 
@@ -333,6 +335,7 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Join site room
   socket.on('join-site', (siteId) => {
     if (socket.supportUser) {
       socket.join(`site-${siteId}`);
@@ -340,6 +343,7 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Visitor joins thread
   socket.on('join-thread', async (threadId, visitorId) => {
     try {
       const threadIdNum = parseInt(threadId);
@@ -347,57 +351,117 @@ io.on('connection', (socket) => {
       socket.join(`thread-${threadIdNum}`);
       console.log(`User joined thread: ${threadIdNum}`);
       
-      const messages = await Message.findAll({ where: { threadId: threadIdNum }, order: [['createdAt', 'ASC']] });
+      const messages = await Message.findAll({ 
+        where: { threadId: threadIdNum }, 
+        order: [['createdAt', 'ASC']] 
+      });
       socket.emit('previous-messages', messages);
+      console.log(`Sent ${messages.length} previous messages to thread ${threadIdNum}`);
     } catch (err) {
       console.error('Join thread error:', err);
     }
   });
 
-  // Visitor message
+  // ========== VISITOR MESSAGE ==========
   socket.on('visitor-message', async (data) => {
     try {
       const { threadId, message, visitorId } = data;
       const threadIdNum = parseInt(threadId);
       
-      const newMessage = await Message.create({ threadId: threadIdNum, sender: 'visitor', senderId: visitorId, message });
+      console.log(`📨 Visitor message in thread ${threadIdNum}: ${message}`);
+      
+      // Save message to database
+      const newMessage = await Message.create({ 
+        threadId: threadIdNum, 
+        sender: 'visitor', 
+        senderId: visitorId, 
+        message 
+      });
+      
+      console.log(`✅ Visitor message saved, ID: ${newMessage.id}`);
+      
+      // Update thread last message time
       await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
       
-      const messageData = { id: newMessage.id, threadId: newMessage.threadId, sender: newMessage.sender, senderId: newMessage.senderId, message: newMessage.message, createdAt: newMessage.createdAt };
+      // Prepare message data
+      const messageData = {
+        id: newMessage.id,
+        threadId: newMessage.threadId,
+        sender: newMessage.sender,
+        senderId: newMessage.senderId,
+        message: newMessage.message,
+        createdAt: newMessage.createdAt
+      };
       
+      // Broadcast to ALL clients in this thread (visitor + support)
       io.to(`thread-${threadIdNum}`).emit('new-message', messageData);
-      console.log(`Visitor message sent, ID: ${newMessage.id}`);
+      console.log(`📤 Broadcasted visitor message to thread ${threadIdNum}`);
+      
     } catch (err) {
       console.error('Visitor message error:', err);
     }
   });
 
-  // Support message
+  // ========== SUPPORT MESSAGE ==========
   socket.on('support-message', async (data) => {
     try {
       const { threadId, message, supportId } = data;
       const threadIdNum = parseInt(threadId);
       
-      const newMessage = await Message.create({ threadId: threadIdNum, sender: 'support', senderId: supportId, message });
+      console.log(`📨 Support message in thread ${threadIdNum}: ${message}`);
+      console.log(`Support ID: ${supportId}, Current User: ${socket.supportUser?.id}`);
+      
+      // Save message to database
+      const newMessage = await Message.create({ 
+        threadId: threadIdNum, 
+        sender: 'support', 
+        senderId: supportId || socket.supportUser?.id, 
+        message 
+      });
+      
+      console.log(`✅ Support message saved, ID: ${newMessage.id}`);
+      
+      // Update thread last message time
       await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
       
-      const messageData = { id: newMessage.id, threadId: newMessage.threadId, sender: newMessage.sender, senderId: newMessage.senderId, message: newMessage.message, createdAt: newMessage.createdAt };
+      // Prepare message data
+      const messageData = {
+        id: newMessage.id,
+        threadId: newMessage.threadId,
+        sender: newMessage.sender,
+        senderId: newMessage.senderId,
+        message: newMessage.message,
+        createdAt: newMessage.createdAt
+      };
       
+      // Broadcast to ALL clients in this thread (visitor + support)
       io.to(`thread-${threadIdNum}`).emit('new-message', messageData);
-      console.log(`Support message sent, ID: ${newMessage.id}`);
+      console.log(`📤 Broadcasted support message to thread ${threadIdNum}`);
+      
+      // Send confirmation to sender
+      socket.emit('message-sent', messageData);
+      
     } catch (err) {
       console.error('Support message error:', err);
     }
   });
 
+  // Pick thread
   socket.on('pick-thread', async (threadId) => {
     if (!socket.supportUser) return;
+    
     try {
       const threadIdNum = parseInt(threadId);
-      await Thread.update({ assignedTo: socket.supportUser.id, status: 'open' }, { where: { id: threadIdNum } });
+      await Thread.update({ 
+        assignedTo: socket.supportUser.id, 
+        status: 'open' 
+      }, { where: { id: threadIdNum } });
+      
       const thread = await Thread.findByPk(threadIdNum);
       io.to(`support-${socket.supportUser.id}`).emit('thread-assigned', thread);
       if (thread) io.to(`site-${thread.siteId}`).emit('thread-updated', thread);
+      
+      console.log(`Thread ${threadIdNum} assigned to support ${socket.supportUser.id}`);
     } catch (err) {
       console.error('Pick thread error:', err);
     }
@@ -405,17 +469,22 @@ io.on('connection', (socket) => {
 
   // Typing indicators
   socket.on('support-typing', (data) => {
-    socket.to(`thread-${data.threadId}`).emit('visitor-typing', { isTyping: data.isTyping });
+    const { threadId, isTyping } = data;
+    socket.to(`thread-${threadId}`).emit('visitor-typing', { isTyping });
+    console.log(`Support typing in thread ${threadId}: ${isTyping}`);
   });
 
   socket.on('visitor-typing', (data) => {
-    socket.to(`thread-${data.threadId}`).emit('support-typing', { isTyping: data.isTyping });
+    const { threadId, isTyping } = data;
+    socket.to(`thread-${threadId}`).emit('support-typing', { isTyping });
+    console.log(`Visitor typing in thread ${threadId}: ${isTyping}`);
   });
 
   socket.on('disconnect', () => {
     console.log('🔌 Disconnected:', socket.id);
   });
 });
+
 
 // Start Server
 const PORT = process.env.PORT || 3000;

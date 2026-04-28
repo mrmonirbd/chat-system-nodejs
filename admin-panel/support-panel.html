@@ -5,117 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Support Panel | Chat Support System</title>
     
-    <!-- Tailwind CSS + Font Awesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
     
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            min-height: 100vh;
-        }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        
-        ::-webkit-scrollbar-thumb {
-            background: #11998e;
-            border-radius: 10px;
-        }
-        
-        /* Message Bubbles */
-        .message-received {
-            background: #f3f4f6;
-            color: #1f2937;
-            border-radius: 18px;
-            border-bottom-left-radius: 4px;
-        }
-        
-        .message-sent {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
-            border-radius: 18px;
-            border-bottom-right-radius: 4px;
-        }
-        
-        /* Thread Item Hover */
-        .thread-item {
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .thread-item:hover {
-            background: linear-gradient(135deg, #f5f5f5 0%, #e8f5e9 100%);
-            transform: translateX(5px);
-        }
-        
-        .thread-item.active {
-            background: linear-gradient(135deg, #e0f2e9 0%, #c8e6d9 100%);
-            border-left: 4px solid #11998e;
-        }
-        
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.3s ease-out;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-        }
-        
-        .notification-badge {
-            animation: pulse 1s infinite;
-        }
-        
-        /* Typing Indicator */
-        .typing-indicator span {
-            height: 8px;
-            width: 8px;
-            background: #11998e;
-            border-radius: 50%;
-            display: inline-block;
-            animation: typing 1.4s infinite ease-in-out;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); min-height: 100vh; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #11998e; border-radius: 10px; }
+        .message-received { background: #f3f4f6; color: #1f2937; border-radius: 18px; border-bottom-left-radius: 4px; }
+        .message-sent { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border-radius: 18px; border-bottom-right-radius: 4px; }
+        .thread-item { transition: all 0.3s ease; cursor: pointer; }
+        .thread-item:hover { background: linear-gradient(135deg, #f5f5f5 0%, #e8f5e9 100%); transform: translateX(5px); }
+        .thread-item.active { background: linear-gradient(135deg, #e0f2e9 0%, #c8e6d9 100%); border-left: 4px solid #11998e; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        .typing-indicator span { height: 8px; width: 8px; background: #11998e; border-radius: 50%; display: inline-block; animation: typing 1.4s infinite ease-in-out; }
         .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
         .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-        
-        @keyframes typing {
-            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-            30% { transform: translateY(-10px); opacity: 1; }
-        }
+        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-10px); opacity: 1; } }
+        .notification-badge { background: #ef4444; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; margin-left: 8px; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
     </style>
 </head>
 <body>
     <div class="container mx-auto px-4 py-4 max-w-7xl">
-        <!-- Header -->
         <div class="fade-in">
             <div class="flex justify-between items-center mb-6 bg-white/10 backdrop-blur-lg rounded-2xl p-4 shadow-xl">
                 <div>
-                    <h1 class="text-2xl font-bold text-white">
-                        <i class="fas fa-headset mr-2"></i>Support Panel
-                    </h1>
+                    <h1 class="text-2xl font-bold text-white"><i class="fas fa-headset mr-2"></i>Support Panel</h1>
                     <p class="text-white/80 text-sm">Manage customer conversations</p>
                 </div>
                 <div class="flex items-center gap-4">
@@ -125,34 +46,23 @@
                             <span id="agentName" class="font-semibold">Agent</span>
                         </div>
                         <div class="flex items-center gap-3 mt-1">
-                            <span id="siteName" class="text-xs text-white/80">
-                                <i class="fas fa-globe mr-1"></i>Loading...
-                            </span>
-                            <button onclick="logout()" class="text-xs text-white/80 hover:text-white transition">
-                                <i class="fas fa-sign-out-alt mr-1"></i>Logout
-                            </button>
+                            <span id="siteName" class="text-xs text-white/80"><i class="fas fa-globe mr-1"></i>Loading...</span>
+                            <button onclick="logout()" class="text-xs text-white/80 hover:text-white transition"><i class="fas fa-sign-out-alt mr-1"></i>Logout</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main Content -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 fade-in">
             <!-- Threads List -->
             <div class="bg-white rounded-2xl shadow-xl overflow-hidden h-[85vh] flex flex-col">
                 <div class="bg-gradient-to-r from-teal-500 to-green-500 px-5 py-3">
-                    <h2 class="text-lg font-bold text-white">
-                        <i class="fas fa-comments mr-2"></i>Active Conversations
-                    </h2>
+                    <h2 class="text-lg font-bold text-white"><i class="fas fa-comments mr-2"></i>Active Conversations</h2>
                     <p class="text-white/80 text-xs mt-1" id="threadCount">0 threads</p>
                 </div>
-                
                 <div class="flex-1 overflow-y-auto p-3 space-y-2" id="threadsList">
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
-                        <p>Loading threads...</p>
-                    </div>
+                    <div class="text-center py-8 text-gray-500"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p>Loading threads...</p></div>
                 </div>
             </div>
 
@@ -160,41 +70,18 @@
             <div class="lg:col-span-2 bg-white rounded-2xl shadow-xl overflow-hidden h-[85vh] flex flex-col">
                 <div class="bg-gradient-to-r from-teal-500 to-green-500 px-5 py-3 flex justify-between items-center">
                     <div>
-                        <h2 class="text-lg font-bold text-white" id="chatHeaderTitle">
-                            <i class="fas fa-user mr-2"></i>Select a conversation
-                        </h2>
+                        <h2 class="text-lg font-bold text-white" id="chatHeaderTitle"><i class="fas fa-user mr-2"></i>Select a conversation</h2>
                         <p class="text-white/80 text-xs" id="chatHeaderStatus">Click on any thread to start chatting</p>
                     </div>
-                    <div id="typingIndicator" class="hidden">
-                        <div class="typing-indicator flex gap-1">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-                    </div>
+                    <div id="typingIndicator" class="hidden"><div class="typing-indicator flex gap-1"><span></span><span></span><span></span></div></div>
                 </div>
-                
-                <!-- Messages Area -->
                 <div class="flex-1 overflow-y-auto p-5 space-y-3" id="chatMessages">
-                    <div class="text-center py-8 text-gray-400">
-                        <i class="fas fa-inbox text-4xl mb-2"></i>
-                        <p>No conversation selected</p>
-                    </div>
+                    <div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-4xl mb-2"></i><p>No conversation selected</p></div>
                 </div>
-                
-                <!-- Message Input -->
                 <div class="p-4 border-t border-gray-200 bg-gray-50">
                     <div class="flex gap-3">
-                        <input type="text" id="messageInput" 
-                               placeholder="Type your message..." 
-                               class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition"
-                               disabled>
-                        <button onclick="sendMessage()" 
-                                id="sendButton"
-                                class="bg-gradient-to-r from-teal-500 to-green-500 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                disabled>
-                            <i class="fas fa-paper-plane mr-2"></i>Send
-                        </button>
+                        <input type="text" id="messageInput" placeholder="Type your message..." class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition" disabled>
+                        <button onclick="sendMessage()" id="sendButton" class="bg-gradient-to-r from-teal-500 to-green-500 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" disabled><i class="fas fa-paper-plane mr-2"></i>Send</button>
                     </div>
                 </div>
             </div>
@@ -208,8 +95,12 @@
         let currentThreadId = null;
         let currentAgent = null;
         let currentSiteId = null;
+        let typingTimeout = null;
         
-        // Check authentication
+        // Track displayed message IDs
+        let displayedMessageIds = new Set();
+        let unreadCounts = {};
+        
         if (!token) {
             showLoginModal();
         } else {
@@ -219,7 +110,6 @@
         function showLoginModal() {
             const email = prompt('📧 Support Agent Email:', '');
             const password = prompt('🔑 Password:', '');
-            
             if (email && password) {
                 fetch(`${API_URL}/auth/login`, {
                     method: 'POST',
@@ -236,26 +126,18 @@
                         document.getElementById('agentName').innerText = data.user.name;
                         initSocket();
                         loadAgentDetails();
-                        loadThreads();
                     } else {
-                        alert('❌ Login failed! Invalid credentials.');
+                        alert('Login failed!');
                         showLoginModal();
                     }
                 })
-                .catch(() => {
-                    alert('❌ Network error! Please try again.');
-                    showLoginModal();
-                });
+                .catch(() => { alert('Network error!'); showLoginModal(); });
             }
         }
         
         async function verifyTokenAndLoad() {
             try {
-                // Verify token and get user info
-                const res = await fetch(`${API_URL}/auth/verify`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
+                const res = await fetch(`${API_URL}/auth/verify`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (res.status === 401) {
                     localStorage.removeItem('supportToken');
                     showLoginModal();
@@ -265,38 +147,24 @@
                     document.getElementById('agentName').innerText = currentAgent.name;
                     initSocket();
                     await loadAgentDetails();
-                    loadThreads();
                 }
-            } catch (err) {
-                console.error('Token verification failed:', err);
-                showLoginModal();
-            }
+            } catch (err) { console.error(err); showLoginModal(); }
         }
         
         async function loadAgentDetails() {
             try {
-                // Get agent's assigned site
-                const res = await fetch(`${API_URL}/users/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
+                const res = await fetch(`${API_URL}/users/me`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (res.ok) {
                     const user = await res.json();
                     currentSiteId = user.siteId;
-                    
-                    // Get site details
-                    const siteRes = await fetch(`${API_URL}/sites/${currentSiteId}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    
+                    const siteRes = await fetch(`${API_URL}/sites/${currentSiteId}`, { headers: { 'Authorization': `Bearer ${token}` } });
                     if (siteRes.ok) {
                         const site = await siteRes.json();
                         document.getElementById('siteName').innerHTML = `<i class="fas fa-globe mr-1"></i>${site.name}`;
                     }
+                    loadThreads();
                 }
-            } catch (err) {
-                console.error('Error loading agent details:', err);
-            }
+            } catch (err) { console.error(err); }
         }
         
         function initSocket() {
@@ -305,31 +173,57 @@
             socket.on('connect', () => {
                 console.log('✅ Connected to chat server');
                 socket.emit('support-auth', token);
-                if (currentSiteId) {
-                    socket.emit('join-site', currentSiteId);
+                if (currentSiteId) socket.emit('join-site', currentSiteId);
+            });
+            
+            // ========== IMPORTANT: Handle new messages ==========
+            socket.on('new-message', (msg) => {
+                console.log('📨 New message received:', msg);
+                
+                // Prevent duplicate
+                if (displayedMessageIds.has(msg.id)) {
+                    console.log('Duplicate ignored:', msg.id);
+                    return;
+                }
+                displayedMessageIds.add(msg.id);
+                
+                // Play sound for visitor messages
+                if (msg.sender === 'visitor') {
+                    playNotificationSound();
+                    
+                    // Increment unread count if not current thread
+                    if (currentThreadId !== msg.threadId) {
+                        unreadCounts[msg.threadId] = (unreadCounts[msg.threadId] || 0) + 1;
+                    }
+                    
+                    // Show browser notification
+                    if (currentThreadId !== msg.threadId) {
+                        showNotification(`New message from Visitor: ${msg.message.substring(0, 50)}`);
+                    }
+                    
+                    // Refresh thread list
+                    loadThreads();
+                }
+                
+                // Add to chat if current thread
+                if (currentThreadId === msg.threadId) {
+                    addMessageToChat(msg);
                 }
             });
             
-            socket.on('new-thread-message', (data) => {
-                if (currentThreadId === data.threadId) {
-                    addMessageToChat(data.message);
-                }
-                loadThreads(); // Refresh thread list
-            });
-            
-            socket.on('thread-assigned', (thread) => {
-                loadThreads();
-                if (currentThreadId === thread.id) {
-                    loadMessages(currentThreadId);
+            socket.on('visitor-typing', (data) => {
+                if (data.isTyping && currentThreadId) {
+                    document.getElementById('chatHeaderStatus').innerHTML = '✏️ Visitor is typing...';
+                } else {
+                    document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
                 }
             });
             
-            socket.on('typing', (data) => {
-                if (data.threadId === currentThreadId && data.isTyping) {
-                    document.getElementById('typingIndicator').classList.remove('hidden');
-                    setTimeout(() => {
-                        document.getElementById('typingIndicator').classList.add('hidden');
-                    }, 2000);
+            socket.on('message-sent', (msg) => {
+                console.log('✅ Message sent confirmation:', msg);
+                if (currentThreadId === msg.threadId && !displayedMessageIds.has(msg.id)) {
+                    displayedMessageIds.add(msg.id);
+                    addMessageToChat(msg);
                 }
             });
         }
@@ -347,22 +241,25 @@
                 threadCount.innerText = `${threads.length} threads`;
                 
                 if (threads.length === 0) {
-                    threadsList.innerHTML = `
-                        <div class="text-center py-8 text-gray-500">
-                            <i class="fas fa-inbox text-3xl mb-2"></i>
-                            <p>No conversations yet</p>
-                            <p class="text-sm">Waiting for visitors to start chatting</p>
-                        </div>
-                    `;
+                    threadsList.innerHTML = `<div class="text-center py-8 text-gray-500"><i class="fas fa-inbox text-3xl mb-2"></i><p>No conversations yet</p></div>`;
                     return;
                 }
                 
                 threadsList.innerHTML = '';
                 
-                threads.forEach(thread => {
+                for (const thread of threads) {
+                    // Get last message
+                    let lastMessage = '';
+                    try {
+                        const msgRes = await fetch(`${API_URL}/threads/${thread.id}/messages`);
+                        const messages = await msgRes.json();
+                        if (messages.length > 0) {
+                            lastMessage = messages[messages.length - 1].message;
+                        }
+                    } catch(e) {}
+                    
                     const isActive = currentThreadId === thread.id;
-                    const statusColor = thread.status === 'open' ? 'text-green-500' : 'text-yellow-500';
-                    const statusIcon = thread.status === 'open' ? 'fa-circle' : 'fa-clock';
+                    const unreadCount = unreadCounts[thread.id] || 0;
                     
                     threadsList.innerHTML += `
                         <div class="thread-item p-3 rounded-xl ${isActive ? 'active' : 'hover:bg-gray-50'}" onclick="selectThread(${thread.id})">
@@ -371,135 +268,123 @@
                                     <div class="flex items-center gap-2">
                                         <i class="fas fa-user-circle text-gray-400"></i>
                                         <span class="font-semibold text-gray-800">${escapeHtml(thread.visitorName || 'Guest')}</span>
-                                        <i class="fas ${statusIcon} ${statusColor} text-xs"></i>
+                                        ${unreadCount > 0 ? `<span class="notification-badge">${unreadCount}</span>` : ''}
                                     </div>
                                     <p class="text-xs text-gray-500 mt-1">
                                         <i class="fas fa-clock mr-1"></i>${new Date(thread.lastMessageAt).toLocaleString()}
                                     </p>
-                                    <p class="text-sm text-gray-600 mt-1 truncate">${escapeHtml(thread.lastMessage || 'Click to view')}</p>
+                                    <p class="text-sm text-gray-600 mt-1 truncate">${escapeHtml(lastMessage.substring(0, 50)) || 'Click to view'}</p>
                                 </div>
-                                ${!thread.assignedTo && thread.status !== 'closed' ? 
-                                    '<button onclick="event.stopPropagation(); assignThread(' + thread.id + ')" class="bg-teal-500 text-white text-xs px-2 py-1 rounded-lg hover:bg-teal-600">Pick</button>' : 
-                                    thread.assignedTo === currentAgent?.id ? '<span class="bg-green-100 text-green-600 text-xs px-2 py-1 rounded-full"><i class="fas fa-check mr-1"></i>Assigned to you</span>' : 
-                                    '<span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded-full">Assigned</span>'
-                                }
                             </div>
                         </div>
                     `;
-                });
-            } catch (err) {
-                console.error('Load threads error:', err);
-            }
+                }
+            } catch (err) { console.error('Load threads error:', err); }
         }
         
         async function selectThread(threadId) {
             currentThreadId = threadId;
+            // Clear unread count for this thread
+            unreadCounts[threadId] = 0;
+            
             document.getElementById('chatHeaderTitle').innerHTML = '<i class="fas fa-comment-dots mr-2"></i>Chatting with Visitor';
             document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendButton').disabled = false;
+            
             await loadMessages(threadId);
-            loadThreads(); // Refresh to highlight selected thread
+            loadThreads();
         }
         
         async function loadMessages(threadId) {
             try {
-                const res = await fetch(`${API_URL}/threads/${threadId}/messages`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const res = await fetch(`${API_URL}/threads/${threadId}/messages`);
                 const messages = await res.json();
                 
                 const chatMessages = document.getElementById('chatMessages');
                 chatMessages.innerHTML = '';
                 
-                if (messages.length === 0) {
-                    chatMessages.innerHTML = `
-                        <div class="text-center py-8 text-gray-400">
-                            <i class="fas fa-comment text-4xl mb-2"></i>
-                            <p>No messages yet</p>
-                            <p class="text-sm">Start the conversation!</p>
-                        </div>
-                    `;
-                } else {
-                    messages.forEach(msg => addMessageToChat(msg));
-                }
+                // Clear displayed IDs for this thread
+                displayedMessageIds.clear();
                 
-                // Scroll to bottom
+                if (messages.length === 0) {
+                    chatMessages.innerHTML = `<div class="text-center py-8 text-gray-400"><i class="fas fa-comment text-4xl mb-2"></i><p>No messages yet</p></div>`;
+                } else {
+                    messages.forEach(msg => {
+                        displayedMessageIds.add(msg.id);
+                        addMessageToChat(msg);
+                    });
+                }
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-            } catch (err) {
-                console.error('Load messages error:', err);
-            }
-        }
-        
-        async function assignThread(threadId) {
-            if (socket) {
-                socket.emit('pick-thread', threadId);
-                setTimeout(() => {
-                    loadThreads();
-                    if (currentThreadId === threadId) {
-                        selectThread(threadId);
-                    }
-                }, 500);
-            }
+            } catch (err) { console.error('Load messages error:', err); }
         }
         
         function sendMessage() {
             const messageInput = document.getElementById('messageInput');
-            const message = messageInput.value;
+            const message = messageInput.value.trim();
+            if (!message || !currentThreadId || !socket) return;
             
-            if (!message.trim() || !currentThreadId) {
-                console.log('Cannot send: empty message or no thread selected');
-                return;
-            }
+            console.log('Sending support message:', message);
             
-            if (!socket) {
-                console.error('Socket not connected');
-                alert('Not connected to chat server. Please refresh.');
-                return;
-            }
-            
-            console.log('Sending message:', { threadId: currentThreadId, message, supportId: currentAgent?.id });
-            
-            // Send message
             socket.emit('support-message', {
                 threadId: currentThreadId,
                 message: message,
                 supportId: currentAgent?.id
             });
             
-            // Clear input
             messageInput.value = '';
-            
-            // Optional: Add message to UI immediately (optimistic update)
-            const tempMessage = {
-                id: Date.now(),
-                threadId: currentThreadId,
-                sender: 'support',
-                senderId: currentAgent?.id,
-                message: message,
-                createdAt: new Date().toISOString(),
-                read: false
-            };
-            addMessageToChat(tempMessage);
         }
         
         function addMessageToChat(msg) {
             const chatMessages = document.getElementById('chatMessages');
-            const isSupport = msg.sender === 'support';
-            const isCurrentUser = isSupport && msg.senderId === currentAgent?.id;
+            const isSentByMe = msg.sender === 'support' && msg.senderId === currentAgent?.id;
+            
+            // Double check for duplicate
+            if (document.getElementById(`msg-${msg.id}`)) return;
             
             const messageDiv = document.createElement('div');
-            messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} fade-in`;
+            messageDiv.id = `msg-${msg.id}`;
+            messageDiv.className = `flex ${isSentByMe ? 'justify-end' : 'justify-start'} fade-in`;
             messageDiv.innerHTML = `
-                <div class="max-w-[70%] ${isCurrentUser ? 'message-sent' : 'message-received'} p-3">
+                <div class="max-w-[70%] ${isSentByMe ? 'message-sent' : 'message-received'} p-3">
                     <div class="text-sm">${escapeHtml(msg.message)}</div>
-                    <div class="text-xs mt-1 opacity-70 ${isCurrentUser ? 'text-white/80' : 'text-gray-500'}">
+                    <div class="text-xs mt-1 opacity-70 ${isSentByMe ? 'text-white/80' : 'text-gray-500'}">
                         ${new Date(msg.createdAt).toLocaleTimeString()}
                     </div>
                 </div>
             `;
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function setupTypingListener() {
+            const messageInput = document.getElementById('messageInput');
+            if (!messageInput) return;
+            
+            messageInput.addEventListener('input', () => {
+                if (socket && currentThreadId) {
+                    socket.emit('support-typing', { threadId: currentThreadId, isTyping: true });
+                    clearTimeout(typingTimeout);
+                    typingTimeout = setTimeout(() => {
+                        if (socket) socket.emit('support-typing', { threadId: currentThreadId, isTyping: false });
+                    }, 1000);
+                }
+            });
+        }
+        
+        function playNotificationSound() {
+            try {
+                const audio = new Audio('data:audio/wav;base64,U3RlYWx0aCBzb3VuZA==');
+                audio.play().catch(e => console.log('Sound not supported'));
+            } catch(e) {}
+        }
+        
+        function showNotification(message) {
+            if (Notification.permission === 'granted') {
+                new Notification('Chat Support', { body: message });
+            } else if (Notification.permission !== 'denied') {
+                Notification.requestPermission();
+            }
         }
         
         function escapeHtml(text) {
@@ -516,14 +401,13 @@
             location.reload();
         }
         
-        // Handle enter key
         document.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && document.getElementById('messageInput') === document.activeElement) {
                 sendMessage();
             }
         });
-
         
+        setTimeout(() => setupTypingListener(), 1000);
     </script>
 </body>
 </html>
