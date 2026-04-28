@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat System Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-8">
+        <h1 class="text-3xl font-bold mb-8">Admin Dashboard</h1>
+        
+        <div class="grid grid-cols-2 gap-6">
+            <!-- Create Site Card -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Create New Site</h2>
+                <input type="text" id="siteName" placeholder="Site Name" class="w-full p-2 border rounded mb-3">
+                <input type="text" id="siteDomain" placeholder="Domain (e.g., example.com)" class="w-full p-2 border rounded mb-3">
+                <button onclick="createSite()" class="bg-blue-500 text-white px-4 py-2 rounded">Create Site</button>
+            </div>
+            
+            <!-- Add Support User Card -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-xl font-semibold mb-4">Add Support Person</h2>
+                <select id="siteSelect" class="w-full p-2 border rounded mb-3"></select>
+                <input type="text" id="supportName" placeholder="Full Name" class="w-full p-2 border rounded mb-3">
+                <input type="email" id="supportEmail" placeholder="Email" class="w-full p-2 border rounded mb-3">
+                <input type="password" id="supportPassword" placeholder="Password" class="w-full p-2 border rounded mb-3">
+                <button onclick="addSupport()" class="bg-green-500 text-white px-4 py-2 rounded">Add Support</button>
+            </div>
+        </div>
+        
+        <!-- Sites List -->
+        <div class="bg-white rounded-lg shadow p-6 mt-6">
+            <h2 class="text-xl font-semibold mb-4">Your Sites</h2>
+            <div id="sitesList"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        let token = localStorage.getItem('token');
+        
+        // SweetAlert default config for top-right positioning
+        const showError = (message) => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: message,
+                position: 'top-right',
+                toast: true,
+                timer: 5000,
+                timerProgressBar: true,
+                showConfirmButton: false
+            });
+        };
+        
+        const showSuccess = (title, message) => {
+            Swal.fire({
+                icon: 'success',
+                title: title,
+                text: message,
+                position: 'top-right',
+                toast: true,
+                timer: 3000,
+                timerProgressBar: true,
+                showConfirmButton: false
+            });
+        };
+        
+        if (!token) {
+            // Simple login (in production, make a proper login page)
+            Swal.fire({
+                title: 'Admin Login',
+                html: `
+                    <input type="email" id="loginEmail" class="swal2-input" placeholder="Admin Email">
+                    <input type="password" id="loginPassword" class="swal2-input" placeholder="Password">
+                `,
+                allowOutsideClick: false,
+                didOpen: (modal) => {
+                    document.getElementById('loginEmail').focus();
+                },
+                preConfirm: () => {
+                    const email = document.getElementById('loginEmail').value;
+                    const password = document.getElementById('loginPassword').value;
+                    
+                    if (!email || !password) {
+                        Swal.showValidationMessage('Please enter email and password');
+                        return false;
+                    }
+                    return { email, password };
+                }
+            }).then(result => {
+                if (result.isConfirmed) {
+                    const { email, password } = result.value;
+                    fetch(`${API_URL}/auth/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    }).then(res => {
+                        if (!res.ok) throw new Error('Login failed');
+                        return res.json();
+                    }).then(data => {
+                        localStorage.setItem('token', data.token);
+                        token = data.token;
+                        showSuccess('Success!', 'Logged in successfully');
+                        loadSites();
+                    }).catch(error => {
+                        showError(error.message || 'Login failed. Please try again');
+                    });
+                }
+            });
+        } else {
+            loadSites();
+        }
+        
+        async function createSite() {
+            const name = document.getElementById('siteName').value.trim();
+            const domain = document.getElementById('siteDomain').value.trim();
+            
+            if (!name) {
+                showError('Please enter site name');
+                return;
+            }
+            
+            if (!domain) {
+                showError('Please enter domain');
+                return;
+            }
+            
+            const domainRegex = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+            if (!domainRegex.test(domain)) {
+                showError('Please enter a valid domain (e.g., example.com)');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_URL}/sites/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name, domain })
+                });
+                
+                if (!res.ok) throw new Error('Failed to create site');
+                
+                const data = await res.json();
+                
+                Swal.fire({
+                    title: 'Success!',
+                    html: `Site created successfully!<br><br><strong>API Key:</strong><br><code>${data.apiKey}</code><br><br><small>Share this with the website owner</small>`,
+                    icon: 'success',
+                    allowOutsideClick: false
+                });
+                
+                document.getElementById('siteName').value = '';
+                document.getElementById('siteDomain').value = '';
+                loadSites();
+            } catch (error) {
+                showError(error.message || 'Failed to create site');
+            }
+        }
+        
+        async function addSupport() {
+            const siteId = document.getElementById('siteSelect').value;
+            const name = document.getElementById('supportName').value.trim();
+            const email = document.getElementById('supportEmail').value.trim();
+            const password = document.getElementById('supportPassword').value.trim();
+            
+            if (!siteId) {
+                showError('Please select a site');
+                return;
+            }
+            
+            if (!name) {
+                showError('Please enter full name');
+                return;
+            }
+            
+            if (!email) {
+                showError('Please enter email');
+                return;
+            }
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showError('Please enter a valid email address');
+                return;
+            }
+            
+            if (!password || password.length < 6) {
+                showError('Password must be at least 6 characters');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_URL}/sites/add-support`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ siteId, name, email, password })
+                });
+                
+                if (!res.ok) throw new Error('Failed to add support user');
+                
+                showSuccess('Success!', 'Support user added successfully');
+                
+                document.getElementById('supportName').value = '';
+                document.getElementById('supportEmail').value = '';
+                document.getElementById('supportPassword').value = '';
+            } catch (error) {
+                showError(error.message || 'Failed to add support user');
+            }
+        }
+        
+        async function loadSites() {
+            try {
+                const res = await fetch(`${API_URL}/sites/list`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!res.ok) throw new Error('Failed to load sites');
+                
+                const sites = await res.json();
+                
+                const siteSelect = document.getElementById('siteSelect');
+                const sitesList = document.getElementById('sitesList');
+                
+                siteSelect.innerHTML = '<option value="">Select Site</option>';
+                sitesList.innerHTML = '';
+                
+                sites.forEach(site => {
+                    siteSelect.innerHTML += `<option value="${site._id}">${site.name}</option>`;
+                    sitesList.innerHTML += `
+                        <div class="border-b py-3">
+                            <p><strong>${site.name}</strong> - ${site.domain}</p>
+                            <p class="text-sm text-gray-600">API Key: <code>${site.apiKey}</code></p>
+                            <p class="text-sm">JS Snippet: <code>&lt;script src="${API_URL.replace('/api', '')}/widget.js" data-chat-widget data-api-key="${site.apiKey}"&gt;&lt;/script&gt;</code></p>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading sites:', error);
+                showError('Failed to load sites');
+            }
+        }
+    </script>
+</body>
+</html> 
