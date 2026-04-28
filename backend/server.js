@@ -13,14 +13,23 @@ const app = express();
 const server = http.createServer(app);
 
 // Socket.IO with CORS
+// Socket.IO with full CORS
 const io = socketIO(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: "*",  
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
-  }
+  },
+  transports: ['websocket', 'polling'] 
 });
+
+app.use(cors({
+  origin: "*",
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 
 // Express CORS Middleware
 app.use(cors({
@@ -369,7 +378,11 @@ io.on('connection', (socket) => {
     try {
       const { threadId, message, visitorId } = data;
       const threadIdNum = parseInt(threadId);
-      
+
+      const roomName = `thread-${threadIdNum}`;
+const roomSize = io.sockets.adapter.rooms.get(roomName)?.size || 0;
+console.log(`📊 Room "${roomName}" has ${roomSize} clients`)
+
       console.log(`Visitor message in thread ${threadIdNum}: ${message}`);
       
       // Save message to database
@@ -435,7 +448,7 @@ io.on('connection', (socket) => {
         message: newMessage.message,
         createdAt: newMessage.createdAt
       };
-      
+      console.log('Prepared support message data:', messageData);
       // Broadcast to ALL clients in this thread (visitor + support)
       io.to(`thread-${threadIdNum}`).emit('new-message', messageData);
       console.log(`Broadcasted support message to thread ${threadIdNum}`);

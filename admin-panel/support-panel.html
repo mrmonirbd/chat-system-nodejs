@@ -95,8 +95,7 @@
         let currentThreadId = null;
         let currentAgent = null;
         let currentSiteId = null;
-        let typingTimeout = null;
-        
+        let typingTimeout = null;        
         // Track displayed message IDs
         let displayedMessageIds = new Set();
         let unreadCounts = {};
@@ -168,17 +167,22 @@
         }
         
         function initSocket() {
+           
             socket = io('http://localhost:3000');
-            
+    
             socket.on('connect', () => {
-                console.log('✅ Connected to chat server');
+                console.log('✅ Socket connected, ID:', socket.id);
                 socket.emit('support-auth', token);
                 if (currentSiteId) socket.emit('join-site', currentSiteId);
+                
+                // Join current thread if any
+                if (currentThreadId) {
+                    socket.emit('join-thread', currentThreadId, currentAgent?.id);
+                }
             });
-            
             // ========== IMPORTANT: Handle new messages ==========
-            socket.on('new-message', (msg) => {
-                console.log('📨 New message received:', msg);
+           socket.on('new-message', (msg) => {
+             console.log('🔴🔴🔴 SUPPORT PANEL GOT MESSAGE:', msg);
                 
                 // Prevent duplicate
                 if (displayedMessageIds.has(msg.id)) {
@@ -324,7 +328,7 @@
             const message = messageInput.value.trim();
             if (!message || !currentThreadId || !socket) return;
             
-            console.log('Sending support message:', message);
+            // console.log('Sending support message:', message);
             
             socket.emit('support-message', {
                 threadId: currentThreadId,
@@ -397,8 +401,20 @@
         function logout() {
             localStorage.removeItem('supportToken');
             localStorage.removeItem('agentName');
-            if (socket) socket.disconnect();
-            location.reload();
+            
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            
+            currentThreadId = null;
+            currentAgent = null;
+            currentSiteId = null;
+            displayedMessageIds.clear();
+            unreadCounts = {};
+            
+            // Reload the page to clear all state
+            window.location.href = '/support-panel';
         }
         
         document.addEventListener('keypress', (e) => {
