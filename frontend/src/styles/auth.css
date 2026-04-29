@@ -82,6 +82,24 @@
     color: #166534;
 }
 
+.auth-state {
+    margin-top: 8px;
+    text-align: center;
+    color: #526b64;
+    font-weight: 700;
+}
+
+.auth-timer {
+    margin: 4px 0 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #ecfdf5;
+    color: #0f766e;
+    text-align: center;
+    font-weight: 800;
+    font-size: 14px;
+}
+
 .auth-switch {
     margin-top: 14px;
     text-align: center;

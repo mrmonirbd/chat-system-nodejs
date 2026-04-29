@@ -5,10 +5,12 @@ const { Sequelize, DataTypes, Op } = require('sequelize');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 const { v4: uuidv4 } = require('uuid');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const server = http.createServer(app);
@@ -58,6 +60,99 @@ function sendFrontendApp(res) {
   }
 
   return res.sendFile(path.join(__dirname, '../frontend/index.html'));
+}
+
+function createMailTransport() {
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
+
+  if (!SMTP_HOST || !SMTP_PORT || !SMTP_USER || !SMTP_PASS) {
+    throw new Error('SMTP is not configured');
+  }
+
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: Number(SMTP_PORT),
+    secure: String(SMTP_PORT) === '465',
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS
+    },
+    tls: process.env.SMTP_TLS_SERVERNAME
+      ? { servername: process.env.SMTP_TLS_SERVERNAME }
+      : undefined
+  });
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function hashResetToken(token) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function getAppUrl() {
+  return (process.env.APP_URL || process.env.FRONTEND_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+}
+
+async function findValidPasswordResetToken(token, email) {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!token || !normalizedEmail) return null;
+
+  return PasswordResetToken.findOne({
+    where: {
+      email: normalizedEmail,
+      tokenHash: hashResetToken(token),
+      usedAt: null,
+      expiresAt: { [Op.gt]: new Date() }
+    }
+  });
+}
+
+async function sendForgotPasswordEmail(user, resetUrl) {
+  const transporter = createMailTransport();
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const safeName = escapeHtml(user.name);
+  const safeResetUrl = escapeHtml(resetUrl);
+
+  await transporter.sendMail({
+    from,
+    to: user.email,
+    subject: 'Reset your Chat System password',
+    text: `Hi ${user.name},\n\nWe received a request to reset your Chat System password.\n\nReset your password here:\n${resetUrl}\n\nThis link will expire in 1 hour. If you did not request this, you can ignore this email.`,
+    html: `
+      <div style="margin:0; padding:0; background:#f3f7f5;">
+        <div style="max-width:560px; margin:0 auto; padding:32px 18px; font-family:Arial, sans-serif; color:#1f2937;">
+          <div style="background:#ffffff; border:1px solid #dce9e3; border-radius:14px; overflow:hidden;">
+            <div style="padding:22px 24px; background:#11998e; color:#ffffff;">
+              <div style="font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;">Chat System</div>
+              <h1 style="margin:8px 0 0; font-size:24px; line-height:1.25;">Reset your password</h1>
+            </div>
+            <div style="padding:24px;">
+              <p style="margin:0 0 14px; font-size:16px;">Hi ${safeName},</p>
+              <p style="margin:0 0 18px; line-height:1.6;">We received a request to reset your Chat System password. Use the button below to set a new password.</p>
+              <p style="margin:24px 0; text-align:center;">
+                <a href="${safeResetUrl}" style="display:inline-block; padding:12px 20px; background:#11998e; color:#ffffff; text-decoration:none; border-radius:8px; font-weight:700;">
+                  Reset password
+                </a>
+              </p>
+              <p style="margin:0 0 14px; line-height:1.6;"><strong>This link will expire in 1 hour.</strong></p>
+              <p style="margin:0 0 14px; line-height:1.6; color:#526b64;">If the button does not work, open this link:</p>
+              <p style="margin:0 0 18px; line-height:1.5; word-break:break-all;">
+                <a href="${safeResetUrl}" style="color:#0f766e;">${safeResetUrl}</a>
+              </p>
+              <p style="margin:0; color:#6b7280; line-height:1.6;">If you did not request this, you can ignore this email.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+  });
 }
 
 // MySQL Connection
@@ -123,6 +218,15 @@ const QuickReply = sequelize.define('QuickReply', {
   text: { type: DataTypes.TEXT, allowNull: false }
 }, { timestamps: true });
 
+const PasswordResetToken = sequelize.define('PasswordResetToken', {
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  userId: { type: DataTypes.INTEGER, allowNull: false },
+  email: { type: DataTypes.STRING, allowNull: false },
+  tokenHash: { type: DataTypes.STRING(64), allowNull: false, unique: true },
+  expiresAt: { type: DataTypes.DATE, allowNull: false },
+  usedAt: { type: DataTypes.DATE, allowNull: true }
+}, { timestamps: true });
+
 // ========== RELATIONSHIPS ==========
 Site.hasMany(User, { foreignKey: 'siteId' });
 User.belongsTo(Site, { foreignKey: 'siteId' });
@@ -139,12 +243,21 @@ Thread.belongsTo(User, { as: 'AssignedSupport', foreignKey: 'assignedTo' });
 User.hasMany(QuickReply, { foreignKey: 'supportId' });
 QuickReply.belongsTo(User, { foreignKey: 'supportId' });
 
+User.hasMany(PasswordResetToken, { foreignKey: 'userId' });
+PasswordResetToken.belongsTo(User, { foreignKey: 'userId' });
+
 // ========== SYNC DATABASE ==========
 // sequelize.sync({ alter: false }).then(() => {
 //   console.log(' MySQL tables ready');
 // }).catch(err => {
 //   console.error(' Sync error:', err);
 // });
+
+PasswordResetToken.sync().then(() => {
+  console.log(' Password reset token table ready');
+}).catch(err => {
+  console.error(' Password reset token table sync error:', err);
+});
 
 // ========== MIDDLEWARE ==========
 const authMiddleware = (req, res, next) => {
@@ -303,6 +416,114 @@ app.post('/api/auth/register', async (req, res) => {
       token,
       user: { id: user.id, name: user.name, email: user.email, role: user.role, siteId: user.siteId }
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const email = String(req.body.email || '').trim().toLowerCase();
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: 'No account found with this email' });
+    }
+
+    const existingToken = await PasswordResetToken.findOne({
+      where: {
+        userId: user.id,
+        email,
+        usedAt: null,
+        expiresAt: { [Op.gt]: new Date() }
+      }
+    });
+
+    if (existingToken) {
+      return res.status(409).json({
+        error: 'A password reset link was already sent. Please check your email or wait until it expires.'
+      });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const resetUrl = `${getAppUrl()}/reset-password?resetToken=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+
+    await PasswordResetToken.create({
+      userId: user.id,
+      email,
+      tokenHash: hashResetToken(token),
+      expiresAt
+    });
+
+    await sendForgotPasswordEmail(user, resetUrl);
+
+    res.json({ message: 'Password reset email sent. Please check your inbox.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/verify-reset-token', async (req, res) => {
+  try {
+    const token = String(req.body.token || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+
+    const resetToken = await findValidPasswordResetToken(token, email);
+    if (!resetToken) {
+      return res.status(400).json({ error: 'Invalid or expired reset link' });
+    }
+
+    const user = await User.findByPk(resetToken.userId, {
+      attributes: ['id', 'email']
+    });
+
+    if (!user || String(user.email).toLowerCase() !== email) {
+      return res.status(400).json({ error: 'Invalid or expired reset link' });
+    }
+
+    res.json({
+      message: 'Reset link is valid',
+      expiresAt: resetToken.expiresAt
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const token = String(req.body.token || '').trim();
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+
+    if (!token || !email || !password) {
+      return res.status(400).json({ error: 'Email, token and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const resetToken = await findValidPasswordResetToken(token, email);
+    if (!resetToken) {
+      return res.status(400).json({ error: 'Invalid or expired reset link' });
+    }
+
+    const user = await User.findByPk(resetToken.userId);
+    if (!user || String(user.email).toLowerCase() !== email) {
+      return res.status(400).json({ error: 'Invalid reset link' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await user.update({ password: hashedPassword });
+    await resetToken.destroy();
+
+    res.json({ message: 'Password reset successful. You can login now.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -609,6 +830,9 @@ app.get('/contact', (req, res) => {
   sendFrontendApp(res);
 });
 app.get('/login', (req, res) => {
+  sendFrontendApp(res);
+});
+app.get('/reset-password', (req, res) => {
   sendFrontendApp(res);
 });
 app.get('/terms', (req, res) => {

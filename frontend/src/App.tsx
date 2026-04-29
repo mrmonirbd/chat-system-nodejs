@@ -6,20 +6,21 @@ import { LoginPage } from './pages/LoginPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
 
-export type RoutePath = '/' | '/about' | '/contact' | '/login' | '/terms' | '/privacy';
+export type RoutePath = '/' | '/about' | '/contact' | '/login' | '/reset-password' | '/terms' | '/privacy';
 
 const pageTitles: Record<RoutePath, string> = {
   '/': 'Chat System | Live Support for Growing Teams',
   '/about': 'About Us | Chat System',
   '/contact': 'Contact Us | Chat System',
   '/login': 'Login | Chat System',
+  '/reset-password': 'Reset Password | Chat System',
   '/terms': 'Terms | Chat System',
   '/privacy': 'Privacy Policy | Chat System'
 };
 
 function getRoutePath(): RoutePath {
   const path = window.location.pathname;
-  if (path === '/about' || path === '/contact' || path === '/login' || path === '/terms' || path === '/privacy') {
+  if (path === '/about' || path === '/contact' || path === '/login' || path === '/reset-password' || path === '/terms' || path === '/privacy') {
     return path;
   }
   return '/';
@@ -45,7 +46,7 @@ export default function App() {
       return;
     }
 
-    const nextRoute = (['/', '/about', '/contact', '/login', '/terms', '/privacy'].includes(path) ? path : '/') as RoutePath;
+    const nextRoute = (['/', '/about', '/contact', '/login', '/reset-password', '/terms', '/privacy'].includes(path) ? path : '/') as RoutePath;
     if (window.location.pathname !== nextRoute) {
       window.history.pushState({}, '', nextRoute);
     }
@@ -58,6 +59,8 @@ export default function App() {
     case '/contact':
       return <ContactPage navigate={navigate} currentRoute={route} />;
     case '/login':
+      return <LoginPage navigate={navigate} />;
+    case '/reset-password':
       return <LoginPage navigate={navigate} />;
     case '/terms':
       return <TermsPage navigate={navigate} currentRoute={route} />;

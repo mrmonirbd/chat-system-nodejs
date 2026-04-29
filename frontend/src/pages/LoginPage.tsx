@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { AppLink } from '../components/Link';
 
 type LoginPageProps = {
@@ -17,9 +17,75 @@ type AuthResponse = {
 const API_URL = '/api';
 
 export function LoginPage({ navigate }: LoginPageProps) {
-  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const resetToken = new URLSearchParams(window.location.search).get('resetToken') || '';
+  const resetEmail = new URLSearchParams(window.location.search).get('email') || '';
+  const [tab, setTab] = useState<'login' | 'signup' | 'forgot' | 'reset'>(resetToken ? 'reset' : 'login');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'error' | 'success' | ''>('');
+  const [resetStatus, setResetStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>(resetToken ? 'checking' : 'idle');
+  const [resetExpiresAt, setResetExpiresAt] = useState('');
+  const [resetSecondsLeft, setResetSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (!resetToken) return;
+
+    let active = true;
+
+    async function verifyResetLink() {
+      setResetStatus('checking');
+      setMessage('');
+
+      try {
+        const res = await fetch(`${API_URL}/auth/verify-reset-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: resetToken, email: resetEmail })
+        });
+        const data = await res.json() as { message?: string; error?: string; expiresAt?: string };
+        if (!active) return;
+        if (!res.ok) throw new Error(data.error || 'Invalid or expired reset link');
+
+        setResetExpiresAt(data.expiresAt || '');
+        setResetStatus('valid');
+      } catch (error) {
+        if (!active) return;
+        setResetStatus('invalid');
+        showError(error);
+      }
+    }
+
+    verifyResetLink();
+
+    return () => {
+      active = false;
+    };
+  }, [resetEmail, resetToken]);
+
+  useEffect(() => {
+    if (tab !== 'reset' || resetStatus !== 'valid' || !resetExpiresAt) return;
+
+    function updateTimer() {
+      const secondsLeft = Math.max(0, Math.ceil((new Date(resetExpiresAt).getTime() - Date.now()) / 1000));
+      setResetSecondsLeft(secondsLeft);
+
+      if (secondsLeft <= 0) {
+        setResetStatus('invalid');
+        setMessage('Reset link expired. Please request a new reset link.');
+        setMessageType('error');
+      }
+    }
+
+    updateTimer();
+    const timerId = window.setInterval(updateTimer, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, [resetExpiresAt, resetStatus, tab]);
+
+  function formatResetTimer(totalSeconds: number) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }
 
   function completeAuth(data: AuthResponse) {
     if (data.user.role === 'admin') {
@@ -88,6 +154,73 @@ export function LoginPage({ navigate }: LoginPageProps) {
     }
   }
 
+  async function submitForgotPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage('');
+
+    const formData = new FormData(event.currentTarget);
+    const email = String(formData.get('email') || '').trim();
+
+    if (!email) {
+      setMessage('Please enter your email address.');
+      setMessageType('error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json() as { message?: string; error?: string };
+      if (!res.ok) throw new Error(data.error || 'Email check failed');
+
+      setMessage(data.message || 'Email found. Please contact your admin to reset this account.');
+      setMessageType('success');
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function submitResetPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage('');
+
+    const formData = new FormData(event.currentTarget);
+    const password = String(formData.get('password') || '');
+    const confirmPassword = String(formData.get('confirmPassword') || '');
+
+    if (password.length < 6) {
+      setMessage('Password must be at least 6 characters.');
+      setMessageType('error');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage('Passwords do not match.');
+      setMessageType('error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, email: resetEmail, password })
+      });
+      const data = await res.json() as { message?: string; error?: string };
+      if (!res.ok) throw new Error(data.error || 'Password reset failed');
+
+      window.history.replaceState({}, '', '/login');
+      setMessage(data.message || 'Password reset successful. You can login now.');
+      setMessageType('success');
+      setTab('login');
+    } catch (error) {
+      showError(error);
+    }
+  }
+
   return (
     <main className="auth-page">
       <section className="auth-card">
@@ -96,7 +229,12 @@ export function LoginPage({ navigate }: LoginPageProps) {
             <span className="brand-mark">C</span>
             <span>Chat System</span>
           </AppLink>
-          <p>{tab === 'login' ? 'Login to continue.' : 'Create an account to continue.'}</p>
+          <p>
+            {tab === 'login' && 'Login to continue.'}
+            {tab === 'signup' && 'Create an account to continue.'}
+            {tab === 'forgot' && 'Enter your email to request password help.'}
+            {tab === 'reset' && 'Set a new password for your account.'}
+          </p>
         </div>
 
         {message && <div className={`auth-message ${messageType}`}>{message}</div>}
@@ -116,8 +254,8 @@ export function LoginPage({ navigate }: LoginPageProps) {
               <button
                 type="button"
                 onClick={() => {
-                  setMessage('Password reset is not available yet. Please contact your admin.');
-                  setMessageType('error');
+                  setMessage('');
+                  setTab('forgot');
                 }}
               >
                 Forgot password?
@@ -126,6 +264,86 @@ export function LoginPage({ navigate }: LoginPageProps) {
             <p className="auth-switch">
               Don&apos;t have an account?{' '}
               <button type="button" onClick={() => setTab('signup')}>Sign up here</button>
+            </p>
+          </form>
+        )}
+
+        {tab === 'forgot' && (
+          <form className="auth-form" onSubmit={submitForgotPassword}>
+            <div className="field">
+              <label htmlFor="forgotEmail">Email</label>
+              <input id="forgotEmail" name="email" type="email" required placeholder="you@example.com" />
+            </div>
+            <button className="auth-btn" type="submit">Submit</button>
+            <p className="auth-switch">
+              Remember your password?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setMessage('');
+                  setTab('login');
+                }}
+              >
+                Login here
+              </button>
+            </p>
+          </form>
+        )}
+
+        {tab === 'reset' && resetStatus === 'checking' && (
+          <div className="auth-form">
+            <p className="auth-state">Checking reset link...</p>
+          </div>
+        )}
+
+        {tab === 'reset' && resetStatus === 'invalid' && (
+          <div className="auth-form">
+            <p className="auth-switch">
+              <button
+                type="button"
+                onClick={() => {
+                  window.history.replaceState({}, '', '/login');
+                  setMessage('');
+                  setResetStatus('idle');
+                  setTab('forgot');
+                }}
+              >
+                Request a new reset link
+              </button>
+            </p>
+          </div>
+        )}
+
+        {tab === 'reset' && resetStatus === 'valid' && (
+          <form className="auth-form" onSubmit={submitResetPassword}>
+            <p className="auth-timer">This link expires in {formatResetTimer(resetSecondsLeft)}</p>
+            {resetEmail && (
+              <div className="field">
+                <label htmlFor="resetEmail">Email</label>
+                <input id="resetEmail" type="email" value={resetEmail} readOnly />
+              </div>
+            )}
+            <div className="field">
+              <label htmlFor="resetPassword">New password</label>
+              <input id="resetPassword" name="password" type="password" required minLength={6} placeholder="Minimum 6 characters" />
+            </div>
+            <div className="field">
+              <label htmlFor="resetConfirmPassword">Confirm password</label>
+              <input id="resetConfirmPassword" name="confirmPassword" type="password" required minLength={6} placeholder="Confirm new password" />
+            </div>
+            <button className="auth-btn" type="submit">Reset password</button>
+            <p className="auth-switch">
+              Remember your password?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  window.history.replaceState({}, '', '/login');
+                  setMessage('');
+                  setTab('login');
+                }}
+              >
+                Login here
+              </button>
             </p>
           </form>
         )}
