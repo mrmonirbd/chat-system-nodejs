@@ -61,8 +61,21 @@
                     </svg>
                 </div>
                 <div id="chat-window" style="display:none; position:absolute; bottom:80px; right:0; width:380px; height:520px; background:white; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.2); flex-direction:column; overflow:hidden;">
-                    <div style="background:${widgetColor}; padding:16px; color:white; display:flex; justify-content:space-between;">
-                        <span>💬 Customer Support</span>
+                    <div style="background:${widgetColor}; padding:16px; color:white; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                        <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                            <div style="width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                                </svg>
+                            </div>
+                            <div style="min-width:0;">
+                                <div id="chat-header-name" style="font-weight:700; font-size:15px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Customer Support</div>
+                                <div style="display:flex; align-items:center; gap:6px; margin-top:3px; font-size:12px; opacity:0.9;">
+                                    <span id="chat-status-dot" style="width:8px; height:8px; border-radius:50%; background:#fbbf24; display:inline-block; flex-shrink:0;"></span>
+                                    <span id="chat-header-status">We reply soon</span>
+                                </div>
+                            </div>
+                        </div>
                         <span id="chat-close" style="cursor:pointer; font-size:24px;">&times;</span>
                     </div>
                     <div id="chat-messages" style="flex:1; overflow-y:auto; padding:16px; background:#f9fafb;"></div>
@@ -84,6 +97,7 @@
         const send = document.getElementById('chat-send');
 
         showGreetingMessage(messagesDiv, greetingMessage, supportAvailability);
+        updateSupportHeader(supportAvailability);
         
         toggle.onclick = () => {
             if (windowDiv.style.display === 'none' || windowDiv.style.display === '') {
@@ -127,8 +141,29 @@
 
     function updateAvailabilityMessage(supportAvailability) {
         const availabilityDiv = document.getElementById('chat-availability-message');
-        if (!availabilityDiv) return;
-        availabilityDiv.textContent = getAvailabilityMessage(supportAvailability);
+        if (availabilityDiv) {
+            availabilityDiv.textContent = getAvailabilityMessage(supportAvailability);
+        }
+        updateSupportHeader(supportAvailability);
+    }
+
+    function updateSupportHeader(supportAvailability) {
+        const headerName = document.getElementById('chat-header-name');
+        const headerStatus = document.getElementById('chat-header-status');
+        const statusDot = document.getElementById('chat-status-dot');
+        if (!headerName || !headerStatus || !statusDot) return;
+
+        if (supportAvailability?.available && supportAvailability.agentName) {
+            headerName.textContent = supportAvailability.agentName;
+            headerStatus.textContent = 'Available now';
+            statusDot.style.background = '#22c55e';
+            statusDot.style.boxShadow = '0 0 0 3px rgba(34,197,94,0.25)';
+        } else {
+            headerName.textContent = 'Customer Support';
+            headerStatus.textContent = 'We reply soon';
+            statusDot.style.background = '#fbbf24';
+            statusDot.style.boxShadow = '0 0 0 3px rgba(251,191,36,0.25)';
+        }
     }
 
     async function connectAvailabilityUpdates() {

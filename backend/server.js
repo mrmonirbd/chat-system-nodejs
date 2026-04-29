@@ -136,6 +136,7 @@ const authMiddleware = (req, res, next) => {
 };
 
 const onlineSupportBySite = new Map();
+const SUPPORT_OFFLINE_GRACE_MS = 60000;
 
 function markSupportOnline(socket, user) {
   if (!user?.siteId) return;
@@ -152,8 +153,14 @@ function markSupportOnline(socket, user) {
   const supportInfo = siteSupport.get(supportKey) || {
     id: user.id,
     name: user.name || user.email || 'Support',
-    sockets: new Set()
+    sockets: new Set(),
+    offlineTimer: null
   };
+
+  if (supportInfo.offlineTimer) {
+    clearTimeout(supportInfo.offlineTimer);
+    supportInfo.offlineTimer = null;
+  }
 
   supportInfo.sockets.add(socket.id);
   siteSupport.set(supportKey, supportInfo);
@@ -176,10 +183,19 @@ function markSupportOffline(socket) {
   if (!supportInfo) return;
 
   supportInfo.sockets.delete(socket.id);
-  if (supportInfo.sockets.size === 0) siteSupport.delete(supportKey);
-  if (siteSupport.size === 0) onlineSupportBySite.delete(siteKey);
+  if (supportInfo.sockets.size > 0 || supportInfo.offlineTimer) return;
 
-  io.to(`site-${socket.supportSiteId}`).emit('support-availability', getAvailableSupport(socket.supportSiteId));
+  supportInfo.offlineTimer = setTimeout(() => {
+    const latestSiteSupport = onlineSupportBySite.get(siteKey);
+    const latestSupportInfo = latestSiteSupport?.get(supportKey);
+
+    if (!latestSupportInfo || latestSupportInfo.sockets.size > 0) return;
+
+    latestSiteSupport.delete(supportKey);
+    if (latestSiteSupport.size === 0) onlineSupportBySite.delete(siteKey);
+
+    io.to(`site-${socket.supportSiteId}`).emit('support-availability', getAvailableSupport(socket.supportSiteId));
+  }, SUPPORT_OFFLINE_GRACE_MS);
 }
 
 function getAvailableSupport(siteId) {
