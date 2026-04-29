@@ -95,6 +95,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   const [onlineChats, setOnlineChats] = useState<Thread[]>([]);
   const [onlineAgents, setOnlineAgents] = useState<OnlineAgent[]>([]);
   const [onlineOpen, setOnlineOpen] = useState(false);
+  const [floatingChatOpen, setFloatingChatOpen] = useState(false);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [adminDraft, setAdminDraft] = useState('');
@@ -215,7 +216,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   async function openThreadFromOnline(thread: Thread) {
     setOnlineOpen(false);
     await openThread(thread);
-    goTo('/admin/chat', 'chat');
+    setFloatingChatOpen(true);
   }
 
   async function sendAdminMessage(event: FormEvent<HTMLFormElement>) {
@@ -278,7 +279,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   }
 
   const supportUsers = users.filter(user => user.role === 'support');
-  const onlineTotal = onlineAgents.length + onlineChats.length;
+  const onlineTotal = onlineChats.length;
   const quickReplies = [
     'Hello! How can I help you today?',
     'Thanks for reaching out. I am checking this for you.',
@@ -328,14 +329,6 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
                   <button key={thread.id} onClick={() => openThreadFromOnline(thread)}>
                     <strong>{thread.visitorName || 'Guest'}</strong>
                     <small>{thread.Site?.name || 'Unknown site'}</small>
-                  </button>
-                ))}
-                <p>Support agents</p>
-                {onlineAgents.length === 0 && <span className="empty-row">No support agent online.</span>}
-                {onlineAgents.map(agent => (
-                  <button key={`${agent.siteId}-${agent.id}`} onClick={() => goTo('/admin/chat', 'chat')}>
-                    <strong>{agent.name}</strong>
-                    <small>Site #{agent.siteId}</small>
                   </button>
                 ))}
               </div>
@@ -530,6 +523,37 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
         )}
 
         {view === 'users' && <DataTable headers={['Name', 'Email', 'Role', 'Site', 'Status']} rows={users.map(user => [user.name, user.email, user.role, user.siteId || '-', user.isActive ? 'Active' : 'Inactive'])} />}
+
+        {floatingChatOpen && selectedThread && (
+          <div className="admin-floating-chat">
+            <div className="admin-floating-chat-head">
+              <div>
+                <strong>{selectedThread.visitorName || 'Guest'}</strong>
+                <span>{selectedThread.Site?.name || 'Unknown site'}</span>
+              </div>
+              <button type="button" onClick={() => setFloatingChatOpen(false)}>×</button>
+            </div>
+            <div className="admin-floating-messages">
+              {messages.length === 0 && <div className="admin-chat-empty">No messages yet</div>}
+              {messages.map(message => (
+                <div className={`admin-message-row ${message.sender === 'support' ? 'sent' : 'received'}`} key={message.id}>
+                  <div className="admin-message">
+                    <div>{message.message}</div>
+                    <time>{formatMessageTime(message.createdAt)}</time>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <form className="admin-floating-composer" onSubmit={sendAdminMessage}>
+              <input
+                value={adminDraft}
+                onChange={event => setAdminDraft(event.target.value)}
+                placeholder="Type your message..."
+              />
+              <button disabled={!adminDraft.trim()}>Send</button>
+            </form>
+          </div>
+        )}
       </main>
     </div>
   );
