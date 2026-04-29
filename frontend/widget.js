@@ -4,6 +4,7 @@
         apiKey: null,
         siteId: null,
         socket: null,
+        availabilitySocket: null,
         threadId: null,
         visitorId: null
     };
@@ -43,6 +44,7 @@
             CONFIG.siteId = data.siteId;
             console.log('✅ Config loaded, siteId:', CONFIG.siteId);
             initWidget(data.settings, data.supportAvailability);
+            connectAvailabilityUpdates();
         } catch (err) {
             console.error('❌ Config error:', err);
         }
@@ -103,10 +105,6 @@
     }
 
     function showGreetingMessage(messagesDiv, greetingMessage, supportAvailability) {
-        const availabilityMessage = supportAvailability?.available && supportAvailability.agentName
-            ? `${supportAvailability.agentName} is available now.`
-            : 'No support agent is available right now. We will reply as soon as possible.';
-
         messagesDiv.innerHTML = `
             <div style="display:flex; justify-content:flex-start; margin-bottom:12px;">
                 <div style="max-width:75%; padding:10px 14px; border-radius:12px; background:#e5e7eb; color:#1f2937; word-wrap:break-word;">
@@ -114,11 +112,39 @@
                 </div>
             </div>
             <div style="display:flex; justify-content:flex-start; margin-bottom:12px;">
-                <div style="max-width:75%; padding:10px 14px; border-radius:12px; background:#e5e7eb; color:#1f2937; word-wrap:break-word;">
-                    ${escapeHtml(availabilityMessage)}
+                <div id="chat-availability-message" style="max-width:75%; padding:10px 14px; border-radius:12px; background:#e5e7eb; color:#1f2937; word-wrap:break-word;">
+                    ${escapeHtml(getAvailabilityMessage(supportAvailability))}
                 </div>
             </div>
         `;
+    }
+
+    function getAvailabilityMessage(supportAvailability) {
+        return supportAvailability?.available && supportAvailability.agentName
+            ? `${supportAvailability.agentName} is available now.`
+            : 'No support agent is available right now. We will reply as soon as possible.';
+    }
+
+    function updateAvailabilityMessage(supportAvailability) {
+        const availabilityDiv = document.getElementById('chat-availability-message');
+        if (!availabilityDiv) return;
+        availabilityDiv.textContent = getAvailabilityMessage(supportAvailability);
+    }
+
+    async function connectAvailabilityUpdates() {
+        if (CONFIG.availabilitySocket || !CONFIG.siteId) return;
+
+        await loadSocketIO();
+        if (typeof io === 'undefined') return;
+
+        CONFIG.availabilitySocket = io(CONFIG.apiUrl);
+        CONFIG.availabilitySocket.on('connect', () => {
+            CONFIG.availabilitySocket.emit('visitor-join-site', CONFIG.siteId);
+        });
+
+        CONFIG.availabilitySocket.on('support-availability', (supportAvailability) => {
+            updateAvailabilityMessage(supportAvailability);
+        });
     }
 
     async function sendVisitorMessage(messagesDiv, input, send) {

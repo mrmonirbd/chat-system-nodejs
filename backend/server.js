@@ -160,6 +160,8 @@ function markSupportOnline(socket, user) {
 
   socket.supportUser = user;
   socket.supportSiteId = user.siteId;
+
+  io.to(`site-${user.siteId}`).emit('support-availability', getAvailableSupport(user.siteId));
 }
 
 function markSupportOffline(socket) {
@@ -176,6 +178,8 @@ function markSupportOffline(socket) {
   supportInfo.sockets.delete(socket.id);
   if (supportInfo.sockets.size === 0) siteSupport.delete(supportKey);
   if (siteSupport.size === 0) onlineSupportBySite.delete(siteKey);
+
+  io.to(`site-${socket.supportSiteId}`).emit('support-availability', getAvailableSupport(socket.supportSiteId));
 }
 
 function getAvailableSupport(siteId) {
@@ -453,6 +457,12 @@ io.on('connection', (socket) => {
       socket.join(`site-${siteId}`);
       console.log(`Support joined site-${siteId}`);
     }
+  });
+
+  socket.on('visitor-join-site', (siteId) => {
+    socket.join(`site-${siteId}`);
+    socket.emit('support-availability', getAvailableSupport(siteId));
+    console.log(`Visitor joined site availability room: ${siteId}`);
   });
 
   // Visitor joins thread
