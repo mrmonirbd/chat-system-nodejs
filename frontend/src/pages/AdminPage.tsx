@@ -128,7 +128,10 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [adminDraft, setAdminDraft] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<{ message: string; agentId?: number } | null>(null);
+  const [noticeClosing, setNoticeClosing] = useState(false);
+  const noticeTimerRef = useRef<number | null>(null);
+  const noticeCloseTimerRef = useRef<number | null>(null);
   const viewRef = useRef(view);
   const activeAgentIdRef = useRef(activeAgentId);
 
@@ -253,7 +256,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
         if (activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat') {
           fetchJson(`${API_URL}/internal-chat/${data.fromSupportId}/read`, { method: 'POST' }).catch(() => {});
         }
-        showNotice(`New message from ${data.fromSupportName || 'Support Agent'}`);
+        showNotice(`You got message from ${data.fromSupportName || 'Support Agent'}`, data.fromSupportId);
       });
     };
 
@@ -436,9 +439,30 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     'This should be resolved now. Please check and let me know.'
   ];
 
-  function showNotice(message: string) {
-    setNotice(message);
-    window.setTimeout(() => setNotice(''), 2200);
+  function showNotice(message: string, agentId?: number) {
+    setNoticeClosing(false);
+    setNotice({ message, agentId });
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+    if (noticeCloseTimerRef.current) window.clearTimeout(noticeCloseTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => closeNotice(), 11000);
+  }
+
+  function closeNotice(event?: React.MouseEvent) {
+    event?.stopPropagation();
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+    setNoticeClosing(true);
+    if (noticeCloseTimerRef.current) window.clearTimeout(noticeCloseTimerRef.current);
+    noticeCloseTimerRef.current = window.setTimeout(() => {
+      setNotice(null);
+      setNoticeClosing(false);
+    }, 260);
+  }
+
+  function openNoticeChat() {
+    if (!notice?.agentId) return;
+    const agent = supportUsers.find(user => user.id === notice.agentId);
+    if (agent) openAgentChat(agent);
+    closeNotice();
   }
 
   return (
@@ -458,7 +482,12 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
       </aside>
 
       <main className="admin-main">
-        {notice && <div className="admin-toast">{notice}</div>}
+        {notice && (
+          <button type="button" className={`admin-toast ${noticeClosing ? 'closing' : ''}`} onClick={openNoticeChat}>
+            <span>{notice.message}</span>
+            <span className="admin-toast-close" onClick={closeNotice}>×</span>
+          </button>
+        )}
         <div className="admin-topbar">
           <div>
             <h1>Admin Panel</h1>

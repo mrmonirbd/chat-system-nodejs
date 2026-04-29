@@ -137,6 +137,54 @@
             padding: 8px;
             margin-top: 8px;
         }
+        .internal-chat-toast {
+            position: fixed;
+            top: 18px;
+            right: 24px;
+            z-index: 80;
+            background: #16a34a;
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.18);
+            font-size: 13px;
+            font-weight: 900;
+            padding: 12px 16px;
+            display: none;
+            align-items: center;
+            gap: 14px;
+            border: 0;
+            cursor: pointer;
+            animation: internalToastIn .28s ease-out;
+        }
+        .internal-chat-toast .toast-close {
+            border-left: 1px solid rgba(255, 255, 255, .28);
+            font-size: 18px;
+            line-height: 1;
+            padding-left: 10px;
+        }
+        .internal-chat-toast.closing {
+            animation: internalToastOut .26s ease-in forwards;
+        }
+        @keyframes internalToastIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px) scale(.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        @keyframes internalToastOut {
+            from {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-8px) scale(.98);
+            }
+        }
         .agent-chat-nav-badge {
             min-width: 20px;
             height: 20px;
@@ -358,6 +406,9 @@
             cursor: pointer;
         }
         @media (max-width: 960px) {
+            .internal-chat-toast {
+                right: 18px;
+            }
             .admin-chat-page {
                 grid-template-columns: 1fr;
                 height: auto;
@@ -526,6 +577,10 @@
     </section>
         </main>
     </div>
+    <button type="button" class="internal-chat-toast" id="internalChatToast" onclick="openToastChat()">
+        <span id="internalChatToastText"></span>
+        <span class="toast-close" onclick="closeInternalChatToast(event)">&times;</span>
+    </button>
 
     <script>
         const API_URL = 'http://localhost:3000/api';
@@ -545,6 +600,9 @@
         let adminUnreadCounts = {};
         let onlineInternalUserIds = new Set();
         let adminChatSessions = {};
+        let internalToastTimer = null;
+        let internalToastCloseTimer = null;
+        let internalToastUserId = null;
         const emptyChatHtml = '<div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-4xl mb-2"></i><p>Please select chat from head to start the chat</p></div>';
         
         if (!token) {
@@ -934,6 +992,7 @@ function initSocket() {
             markAdminChatRead(adminId);
         }
         renderAdminAgentList();
+        showInternalChatToast(`You got message from ${msg.fromAdminName || 'Team member'}`, adminId);
         playNotificationSound();
     });
 }
@@ -1352,6 +1411,40 @@ function initSocket() {
 
         function isAgentChatActive() {
             return activeSupportView === 'agentChat' && !document.getElementById('agentChatPage').classList.contains('hidden');
+        }
+
+        function showInternalChatToast(message, userId) {
+            const toast = document.getElementById('internalChatToast');
+            const text = document.getElementById('internalChatToastText');
+            if (!toast) return;
+            internalToastUserId = userId || null;
+            text.innerText = message;
+            toast.classList.remove('closing');
+            toast.style.display = 'flex';
+            clearTimeout(internalToastTimer);
+            clearTimeout(internalToastCloseTimer);
+            internalToastTimer = setTimeout(() => closeInternalChatToast(), 11000);
+        }
+
+        function closeInternalChatToast(event) {
+            event?.stopPropagation();
+            const toast = document.getElementById('internalChatToast');
+            clearTimeout(internalToastTimer);
+            clearTimeout(internalToastCloseTimer);
+            if (!toast) return;
+            toast.classList.add('closing');
+            internalToastCloseTimer = setTimeout(() => {
+                toast.style.display = 'none';
+                toast.classList.remove('closing');
+                internalToastUserId = null;
+            }, 260);
+        }
+
+        function openToastChat() {
+            if (!internalToastUserId) return;
+            showSupportView('agentChat');
+            selectAdminAgent(internalToastUserId);
+            closeInternalChatToast();
         }
 
         function markAdminChatRead(adminId) {
