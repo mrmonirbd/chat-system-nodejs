@@ -154,9 +154,12 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
-                            <button type="button" class="w-full bg-teal-50 text-teal-700 border border-teal-200 rounded-lg px-3 py-2 text-sm font-semibold hover:bg-teal-100" onclick="addCustomQuickReply()">
-                                <i class="fas fa-plus mr-1"></i>Add custom text
-                            </button>
+                            <div class="flex gap-2">
+                                <input type="text" id="customQuickReplyInput" placeholder="Write custom quick text..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                                <button type="button" class="bg-teal-500 text-white rounded-lg px-3 py-2 text-sm font-semibold hover:bg-teal-600" onclick="addCustomQuickReply()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
                             <div id="customQuickReplyManager" class="mt-3 space-y-2 max-h-48 overflow-y-auto"></div>
                         </div>
                     </div>
@@ -507,11 +510,18 @@ function initSocket() {
             }
 
             manager.innerHTML = customQuickReplyItems.map((reply) => `
-                <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2">
-                    <p class="text-sm text-gray-700 truncate" title="${escapeHtml(reply.text)}">${escapeHtml(reply.text)}</p>
-                    <button type="button" class="text-gray-400 hover:text-red-500" onclick="deleteCustomQuickReply(${reply.id})" title="Delete quick reply">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                <div class="rounded-lg border border-gray-200 p-2" id="quick-reply-row-${reply.id}">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-sm text-gray-700 truncate flex-1" title="${escapeHtml(reply.text)}">${escapeHtml(reply.text)}</p>
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="text-gray-400 hover:text-teal-600" onclick="startEditQuickReply(${reply.id})" title="Edit quick reply">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button type="button" class="text-gray-400 hover:text-red-500" onclick="deleteCustomQuickReply(${reply.id})" title="Delete quick reply">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             `).join('');
         }
@@ -529,8 +539,8 @@ function initSocket() {
         }
 
         async function addCustomQuickReply() {
-            const replyText = prompt('Add custom quick reply:', '');
-            const trimmedReply = replyText?.trim();
+            const input = document.getElementById('customQuickReplyInput');
+            const trimmedReply = input?.value.trim();
             if (!trimmedReply) return;
 
             try {
@@ -547,11 +557,58 @@ function initSocket() {
 
                 const reply = await res.json();
                 customQuickReplyItems.push(reply);
+                input.value = '';
                 renderCustomQuickReplies();
                 renderQuickReplySettings();
             } catch (err) {
                 console.error('Add custom quick reply error:', err);
                 alert('Failed to save quick reply');
+            }
+        }
+
+        function startEditQuickReply(replyId) {
+            const reply = customQuickReplyItems.find(item => item.id === replyId);
+            const row = document.getElementById(`quick-reply-row-${replyId}`);
+            if (!reply || !row) return;
+
+            row.innerHTML = `
+                <div class="flex gap-2">
+                    <input type="text" id="edit-quick-reply-${replyId}" value="${escapeHtml(reply.text)}" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                    <button type="button" class="bg-teal-500 text-white rounded-lg px-3 py-2 text-sm hover:bg-teal-600" onclick="saveEditedQuickReply(${replyId})">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button type="button" class="bg-gray-100 text-gray-600 rounded-lg px-3 py-2 text-sm hover:bg-gray-200" onclick="renderQuickReplySettings()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            document.getElementById(`edit-quick-reply-${replyId}`)?.focus();
+        }
+
+        async function saveEditedQuickReply(replyId) {
+            const input = document.getElementById(`edit-quick-reply-${replyId}`);
+            const trimmedReply = input?.value.trim();
+            if (!trimmedReply) return;
+
+            try {
+                const res = await fetch(`${API_URL}/quick-replies/${replyId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ text: trimmedReply })
+                });
+
+                if (!res.ok) throw new Error('Failed to update quick reply');
+
+                const updatedReply = await res.json();
+                customQuickReplyItems = customQuickReplyItems.map(reply => reply.id === replyId ? updatedReply : reply);
+                renderCustomQuickReplies();
+                renderQuickReplySettings();
+            } catch (err) {
+                console.error('Update custom quick reply error:', err);
+                alert('Failed to update quick reply');
             }
         }
 

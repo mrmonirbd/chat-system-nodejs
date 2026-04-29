@@ -345,6 +345,30 @@ app.post('/api/quick-replies', authMiddleware, async (req, res) => {
   }
 });
 
+app.put('/api/quick-replies/:id', authMiddleware, async (req, res) => {
+  try {
+    const { text } = req.body;
+    const trimmedText = text?.trim();
+
+    if (!trimmedText) {
+      return res.status(400).json({ error: 'Reply text is required' });
+    }
+
+    const reply = await QuickReply.findOne({
+      where: { id: req.params.id, supportId: req.user.id }
+    });
+
+    if (!reply) return res.status(404).json({ error: 'Quick reply not found' });
+
+    reply.text = trimmedText;
+    await reply.save();
+
+    res.json(reply);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/quick-replies/:id', authMiddleware, async (req, res) => {
   try {
     const deleted = await QuickReply.destroy({
