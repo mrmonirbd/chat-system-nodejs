@@ -8,7 +8,21 @@ import { LoginPage } from './pages/LoginPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
 
-export type RoutePath = '/' | '/about' | '/contact' | '/login' | '/reset-password' | '/admin' | '/terms' | '/privacy';
+export type RoutePath =
+  | '/'
+  | '/about'
+  | '/contact'
+  | '/login'
+  | '/reset-password'
+  | '/admin'
+  | '/admin/analytics'
+  | '/admin/chat'
+  | '/admin/sites'
+  | '/admin/support-agents'
+  | '/admin/api-keys'
+  | '/admin/users'
+  | '/terms'
+  | '/privacy';
 
 const pageTitles: Record<RoutePath, string> = {
   '/': 'Chat System | Live Support for Growing Teams',
@@ -17,16 +31,48 @@ const pageTitles: Record<RoutePath, string> = {
   '/login': 'Login | Chat System',
   '/reset-password': 'Reset Password | Chat System',
   '/admin': 'Admin Panel | Chat System',
+  '/admin/analytics': 'Analytics | Chat System',
+  '/admin/chat': 'Admin Chat | Chat System',
+  '/admin/sites': 'Sites | Chat System',
+  '/admin/support-agents': 'Support Agents | Chat System',
+  '/admin/api-keys': 'API Keys | Chat System',
+  '/admin/users': 'Users | Chat System',
   '/terms': 'Terms | Chat System',
   '/privacy': 'Privacy Policy | Chat System'
 };
 
+const validRoutes: RoutePath[] = [
+  '/',
+  '/about',
+  '/contact',
+  '/login',
+  '/reset-password',
+  '/admin',
+  '/admin/analytics',
+  '/admin/chat',
+  '/admin/sites',
+  '/admin/support-agents',
+  '/admin/api-keys',
+  '/admin/users',
+  '/terms',
+  '/privacy'
+];
+
 function getRoutePath(): RoutePath {
   const path = window.location.pathname;
-  if (path === '/about' || path === '/contact' || path === '/login' || path === '/reset-password' || path === '/admin' || path === '/terms' || path === '/privacy') {
-    return path;
+  if (validRoutes.includes(path as RoutePath)) {
+    return path as RoutePath;
   }
   return '/';
+}
+
+function getAdminView(route: RoutePath) {
+  if (route === '/admin/chat') return 'chat' as const;
+  if (route === '/admin/sites') return 'sites' as const;
+  if (route === '/admin/support-agents') return 'support' as const;
+  if (route === '/admin/api-keys') return 'apiKeys' as const;
+  if (route === '/admin/users') return 'users' as const;
+  return 'dashboard' as const;
 }
 
 export default function App() {
@@ -49,7 +95,7 @@ export default function App() {
       return;
     }
 
-    const nextRoute = (['/', '/about', '/contact', '/login', '/reset-password', '/admin', '/terms', '/privacy'].includes(path) ? path : '/') as RoutePath;
+    const nextRoute = (validRoutes.includes(path as RoutePath) ? path : '/') as RoutePath;
     if (window.location.pathname !== nextRoute) {
       window.history.pushState({}, '', nextRoute);
     }
@@ -66,7 +112,13 @@ export default function App() {
     case '/reset-password':
       return <Layout navigate={navigate} currentRoute={route}><LoginPage navigate={navigate} /></Layout>;
     case '/admin':
-      return <Layout navigate={navigate} currentRoute={route}><AdminPage /></Layout>;
+    case '/admin/analytics':
+    case '/admin/chat':
+    case '/admin/sites':
+    case '/admin/support-agents':
+    case '/admin/api-keys':
+    case '/admin/users':
+      return <AdminPage initialView={getAdminView(route)} navigate={navigate} />;
     case '/terms':
       return <TermsPage navigate={navigate} currentRoute={route} />;
     case '/privacy':

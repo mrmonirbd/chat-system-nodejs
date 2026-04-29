@@ -103,6 +103,7 @@ function getAppUrl() {
 
 function getRangeDays(range) {
   const ranges = {
+    '1d': 1,
     '7d': 7,
     '30d': 30,
     '6m': 183,
@@ -1025,6 +1026,35 @@ app.get('/api/admin/threads', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/admin/online-chats', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    const chatFilters = Array.from(openChatBoxes.keys()).map(key => {
+      const [siteId, visitorId] = key.split(':');
+      return siteId && visitorId ? { siteId, visitorId } : null;
+    }).filter(Boolean);
+
+    if (chatFilters.length === 0) return res.json([]);
+
+    const threads = await Thread.findAll({
+      where: {
+        [Op.or]: chatFilters,
+        status: ['open', 'pending']
+      },
+      include: [
+        { model: Site, attributes: ['id', 'name', 'domain'] },
+        { model: User, as: 'AssignedSupport', attributes: ['id', 'name', 'email'] }
+      ],
+      order: [['lastMessageAt', 'DESC']]
+    });
+
+    res.json(threads);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/admin/threads/:threadId/messages', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
@@ -1119,6 +1149,24 @@ app.get('/privacy', (req, res) => {
   sendFrontendApp(res);
 });
 app.get('/admin', (req, res) => {
+  sendFrontendApp(res);
+});
+app.get('/admin/analytics', (req, res) => {
+  sendFrontendApp(res);
+});
+app.get('/admin/chat', (req, res) => {
+  sendFrontendApp(res);
+});
+app.get('/admin/sites', (req, res) => {
+  sendFrontendApp(res);
+});
+app.get('/admin/support-agents', (req, res) => {
+  sendFrontendApp(res);
+});
+app.get('/admin/api-keys', (req, res) => {
+  sendFrontendApp(res);
+});
+app.get('/admin/users', (req, res) => {
   sendFrontendApp(res);
 });
 app.get('/dashboard', (req, res) => {

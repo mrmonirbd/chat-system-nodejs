@@ -9,6 +9,10 @@ export default defineConfig({
       '/api': 'http://localhost:3000',
       '/admin': 'http://localhost:3000',
       '/support-panel': 'http://localhost:3000',
+      '/socket.io': {
+        target: 'http://localhost:3000',
+        ws: true
+      },
       '/widget.js': 'http://localhost:3000',
       '/widget.css': 'http://localhost:3000'
     }
