@@ -102,6 +102,12 @@ const Message = sequelize.define('Message', {
   read: { type: DataTypes.BOOLEAN, defaultValue: false }
 }, { timestamps: true });
 
+const QuickReply = sequelize.define('QuickReply', {
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  supportId: { type: DataTypes.INTEGER, allowNull: false },
+  text: { type: DataTypes.TEXT, allowNull: false }
+}, { timestamps: true });
+
 // ========== RELATIONSHIPS ==========
 Site.hasMany(User, { foreignKey: 'siteId' });
 User.belongsTo(Site, { foreignKey: 'siteId' });
@@ -114,6 +120,9 @@ Message.belongsTo(Thread, { foreignKey: 'threadId' });
 
 User.hasMany(Thread, { as: 'AssignedThreads', foreignKey: 'assignedTo' });
 Thread.belongsTo(User, { as: 'AssignedSupport', foreignKey: 'assignedTo' });
+
+User.hasMany(QuickReply, { foreignKey: 'supportId' });
+QuickReply.belongsTo(User, { foreignKey: 'supportId' });
 
 // ========== SYNC DATABASE ==========
 // sequelize.sync({ alter: false }).then(() => {
@@ -298,6 +307,53 @@ app.get('/api/support-agents/count', authMiddleware, async (req, res) => {
       attributes: ['id', 'name', 'email', 'siteId']
     });
     res.json({ count: agents.length, agents });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Support quick replies
+app.get('/api/quick-replies', authMiddleware, async (req, res) => {
+  try {
+    const replies = await QuickReply.findAll({
+      where: { supportId: req.user.id },
+      order: [['createdAt', 'ASC']]
+    });
+    res.json(replies);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/quick-replies', authMiddleware, async (req, res) => {
+  try {
+    const { text } = req.body;
+    const trimmedText = text?.trim();
+
+    if (!trimmedText) {
+      return res.status(400).json({ error: 'Reply text is required' });
+    }
+
+    const reply = await QuickReply.create({
+      supportId: req.user.id,
+      text: trimmedText
+    });
+
+    res.json(reply);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/quick-replies/:id', authMiddleware, async (req, res) => {
+  try {
+    const deleted = await QuickReply.destroy({
+      where: { id: req.params.id, supportId: req.user.id }
+    });
+
+    if (!deleted) return res.status(404).json({ error: 'Quick reply not found' });
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

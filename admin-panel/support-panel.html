@@ -121,12 +121,14 @@
                     <div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-4xl mb-2"></i><p>No conversation selected</p></div>
                 </div>
                 <div class="p-4 border-t border-gray-200 bg-gray-50">
-                    <div class="flex gap-2 overflow-x-auto pb-3" id="quickReplies">
+                    <div class="flex gap-2 overflow-x-auto pb-3 items-center" id="quickReplies">
                         <button type="button" class="quick-reply-chip" data-reply="Hello! How can I help you today?" onclick="insertQuickReply(this.dataset.reply)" disabled>Hello</button>
                         <button type="button" class="quick-reply-chip" data-reply="Thanks for reaching out. I am checking this for you." onclick="insertQuickReply(this.dataset.reply)" disabled>Checking</button>
                         <button type="button" class="quick-reply-chip" data-reply="Could you please share a little more detail?" onclick="insertQuickReply(this.dataset.reply)" disabled>More detail</button>
                         <button type="button" class="quick-reply-chip" data-reply="Please wait a moment while I look into this." onclick="insertQuickReply(this.dataset.reply)" disabled>Please wait</button>
                         <button type="button" class="quick-reply-chip" data-reply="This should be resolved now. Please check and let me know." onclick="insertQuickReply(this.dataset.reply)" disabled>Resolved</button>
+                        <span id="customQuickReplies" class="flex gap-2"></span>
+                        <button type="button" class="quick-reply-chip" onclick="addCustomQuickReply()"><i class="fas fa-plus mr-1"></i>Add</button>
                     </div>
                     <div class="flex gap-3">
                         <input type="text" id="messageInput" placeholder="Type your message..." class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition" disabled>
@@ -147,6 +149,7 @@
         let typingTimeout = null;        
         let displayedMessageIds = new Set();
         let unreadCounts = {};
+        let customQuickReplyItems = [];
         
         if (!token) {
             showLoginModal();
@@ -164,7 +167,7 @@
                     body: JSON.stringify({ email, password })
                 })
                 .then(res => res.json())
-                .then(data => {
+                .then(async data => {
                     if (data.token) {
                         localStorage.setItem('supportToken', data.token);
                         localStorage.setItem('agentName', data.user.name);
@@ -173,7 +176,8 @@
                         currentSiteId = data.user.siteId;
                         document.getElementById('agentName').innerText = data.user.name;
                         initSocket();
-                        loadAgentDetails();
+                        await loadAgentDetails();
+                        await loadCustomQuickReplies();
                     } else {
                         alert('Login failed!');
                         showLoginModal();
@@ -200,6 +204,7 @@
                     
                     initSocket();
                     await loadAgentDetails();
+                    await loadCustomQuickReplies();
                     
                     const lastThreadId = localStorage.getItem('lastThreadId');
                     if (lastThreadId) {
@@ -436,9 +441,84 @@ function initSocket() {
             messageInput.focus();
         }
 
+        async function loadCustomQuickReplies() {
+            if (!token) return;
+
+            try {
+                const res = await fetch(`${API_URL}/quick-replies`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error('Failed to load quick replies');
+
+                customQuickReplyItems = await res.json();
+                renderCustomQuickReplies();
+            } catch (err) {
+                console.error('Load custom quick replies error:', err);
+            }
+        }
+
+        function renderCustomQuickReplies() {
+            const customQuickRepliesEl = document.getElementById('customQuickReplies');
+            if (!customQuickRepliesEl) return;
+
+            customQuickRepliesEl.innerHTML = customQuickReplyItems.map((reply) => `
+                <span class="inline-flex items-center gap-1">
+                    <button type="button" class="quick-reply-chip custom-quick-reply" data-reply="${escapeHtml(reply.text)}" onclick="insertQuickReply(this.dataset.reply)" ${currentThreadId ? '' : 'disabled'}>${escapeHtml(reply.text.substring(0, 24))}${reply.text.length > 24 ? '...' : ''}</button>
+                    <button type="button" class="text-gray-400 hover:text-red-500 text-xs px-1" onclick="deleteCustomQuickReply(${reply.id})" title="Delete quick reply">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </span>
+            `).join('');
+        }
+
+        async function addCustomQuickReply() {
+            const replyText = prompt('Add custom quick reply:', '');
+            const trimmedReply = replyText?.trim();
+            if (!trimmedReply) return;
+
+            try {
+                const res = await fetch(`${API_URL}/quick-replies`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ text: trimmedReply })
+                });
+
+                if (!res.ok) throw new Error('Failed to save quick reply');
+
+                const reply = await res.json();
+                customQuickReplyItems.push(reply);
+                renderCustomQuickReplies();
+            } catch (err) {
+                console.error('Add custom quick reply error:', err);
+                alert('Failed to save quick reply');
+            }
+        }
+
+        async function deleteCustomQuickReply(replyId) {
+            try {
+                const res = await fetch(`${API_URL}/quick-replies/${replyId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) throw new Error('Failed to delete quick reply');
+
+                customQuickReplyItems = customQuickReplyItems.filter(reply => reply.id !== replyId);
+                renderCustomQuickReplies();
+            } catch (err) {
+                console.error('Delete custom quick reply error:', err);
+                alert('Failed to delete quick reply');
+            }
+        }
+
         function setQuickRepliesDisabled(isDisabled) {
             document.querySelectorAll('#quickReplies button').forEach(button => {
-                button.disabled = isDisabled;
+                if (!button.matches('[onclick^="addCustomQuickReply"], [onclick^="deleteCustomQuickReply"]')) {
+                    button.disabled = isDisabled;
+                }
             });
         }
         
