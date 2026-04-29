@@ -748,6 +748,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   );
 }
 
+
 function AgentChatRoom({ activeChat, onlineAgentIds, onDraftChange, onSend }: { activeChat?: AgentChatSession; onlineAgentIds: Set<number>; onDraftChange: (agentId: number, draft: string) => void; onSend: (event: FormEvent<HTMLFormElement>, agentId: number) => void }) {
   return (
     <div className="admin-chat-room-card">
