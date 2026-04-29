@@ -593,6 +593,15 @@ app.get('/about', (req, res) => {
 app.get('/contact', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/contact.html'));
 });
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/login.html'));
+});
+app.get('/terms', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/terms.html'));
+});
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/privacy.html'));
+});
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '../admin-panel/index.html'));
 });

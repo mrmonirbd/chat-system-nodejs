@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Chat System</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { min-height: 100vh; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: linear-gradient(135deg, #11998e, #38ef7d); color: #10201b; display: grid; place-items: center; padding: 24px; }
+        a { color: #0f766e; font-weight: 700; }
+        .auth-card { width: min(460px, 100%); background: #fff; border-radius: 18px; box-shadow: 0 24px 70px rgba(16, 32, 27, 0.22); overflow: hidden; }
+        .auth-head { padding: 26px; background: #f7fbf9; border-bottom: 1px solid #dce9e3; }
+        .brand { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 900; }
+        .brand-mark { width: 36px; height: 36px; border-radius: 10px; background: #11998e; color: #fff; display: grid; place-items: center; }
+        .auth-head p { color: #526b64; margin-top: 10px; }
+        .tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 12px; gap: 8px; }
+        .tab { border: 1px solid #cfe1db; background: #fff; color: #31524a; border-radius: 8px; min-height: 42px; font-weight: 800; cursor: pointer; }
+        .tab.active { background: #11998e; color: #fff; border-color: #11998e; }
+        form { padding: 0 26px 26px; display: none; }
+        form.active { display: block; }
+        .field { margin-top: 14px; }
+        label { display: block; font-size: 13px; font-weight: 800; margin-bottom: 6px; color: #31524a; }
+        input, select { width: 100%; border: 1px solid #cfe1db; border-radius: 8px; padding: 12px; font: inherit; outline: none; }
+        input:focus, select:focus { border-color: #11998e; box-shadow: 0 0 0 4px rgba(17,153,142,0.12); }
+        .check { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; font-size: 13px; color: #526b64; }
+        .check input { width: auto; margin-top: 3px; }
+        .btn { width: 100%; border: none; background: #11998e; color: #fff; min-height: 44px; border-radius: 8px; font-weight: 900; margin-top: 18px; cursor: pointer; }
+        .message { display: none; margin: 0 26px 18px; padding: 10px 12px; border-radius: 8px; font-size: 14px; font-weight: 700; }
+        .message.error { display: block; background: #fee2e2; color: #991b1b; }
+        .message.success { display: block; background: #dcfce7; color: #166534; }
+        .back { text-align: center; padding: 0 26px 24px; color: #526b64; font-size: 14px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <main class="auth-card">
+        <div class="auth-head">
+            <a class="brand" href="/"><span class="brand-mark">C</span><span>Chat System</span></a>
+            <p>Login or create an account to continue.</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" type="button" onclick="showTab('login')">Login</button>
+            <button class="tab" type="button" onclick="showTab('signup')">Sign up</button>
+        </div>
+
+        <div id="authMessage" class="message"></div>
+
+        <form id="loginForm" class="active">
+            <div class="field">
+                <label for="loginEmail">Email</label>
+                <input id="loginEmail" type="email" required placeholder="you@example.com">
+            </div>
+            <div class="field">
+                <label for="loginPassword">Password</label>
+                <input id="loginPassword" type="password" required placeholder="Password">
+            </div>
+            <button class="btn" type="submit">Login</button>
+        </form>
+
+        <form id="signupForm">
+            <div class="field">
+                <label for="signupName">Name</label>
+                <input id="signupName" type="text" required placeholder="Your name">
+            </div>
+            <div class="field">
+                <label for="signupEmail">Email</label>
+                <input id="signupEmail" type="email" required placeholder="you@example.com">
+            </div>
+            <div class="field">
+                <label for="signupPassword">Password</label>
+                <input id="signupPassword" type="password" required minlength="6" placeholder="Minimum 6 characters">
+            </div>
+            <div class="field">
+                <label for="signupRole">Account type</label>
+                <select id="signupRole" onchange="toggleSiteField()">
+                    <option value="admin">Admin</option>
+                    <option value="support">Support agent</option>
+                </select>
+            </div>
+            <div class="field hidden" id="siteField">
+                <label for="signupSiteId">Site ID</label>
+                <input id="signupSiteId" type="number" placeholder="Required for support agents">
+            </div>
+            <label class="check">
+                <input id="termsCheck" type="checkbox" required>
+                <span>I agree to the <a href="/terms" target="_blank">Terms</a>.</span>
+            </label>
+            <label class="check">
+                <input id="privacyCheck" type="checkbox" required>
+                <span>I agree to the <a href="/privacy" target="_blank">Privacy Policy</a>.</span>
+            </label>
+            <button class="btn" type="submit">Create account</button>
+        </form>
+
+        <div class="back"><a href="/">Back to home</a></div>
+    </main>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('form').forEach(form => form.classList.remove('active'));
+            document.querySelector(`.tab:nth-child(${tabName === 'login' ? 1 : 2})`).classList.add('active');
+            document.getElementById(`${tabName}Form`).classList.add('active');
+            setMessage('');
+        }
+
+        function toggleSiteField() {
+            const isSupport = document.getElementById('signupRole').value === 'support';
+            document.getElementById('siteField').classList.toggle('hidden', !isSupport);
+            document.getElementById('signupSiteId').required = isSupport;
+        }
+
+        function setMessage(text, type = '') {
+            const message = document.getElementById('authMessage');
+            message.textContent = text;
+            message.className = `message ${type}`;
+        }
+
+        function completeAuth(data) {
+            if (data.user.role === 'admin') {
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('adminName', data.user.name);
+                window.location.href = '/admin';
+                return;
+            }
+
+            localStorage.setItem('supportToken', data.token);
+            localStorage.setItem('agentName', data.user.name);
+            window.location.href = '/support-panel';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            setMessage('');
+
+            try {
+                const res = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: document.getElementById('loginEmail').value,
+                        password: document.getElementById('loginPassword').value
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Login failed');
+                completeAuth(data);
+            } catch (err) {
+                setMessage(err.message, 'error');
+            }
+        });
+
+        document.getElementById('signupForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            setMessage('');
+
+            try {
+                const role = document.getElementById('signupRole').value;
+                const res = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: document.getElementById('signupName').value,
+                        email: document.getElementById('signupEmail').value,
+                        password: document.getElementById('signupPassword').value,
+                        role,
+                        siteId: role === 'support' ? document.getElementById('signupSiteId').value : null,
+                        acceptedTerms: document.getElementById('termsCheck').checked,
+                        acceptedPrivacy: document.getElementById('privacyCheck').checked
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Signup failed');
+                completeAuth(data);
+            } catch (err) {
+                setMessage(err.message, 'error');
+            }
+        });
+    </script>
+</body>
+</html>
