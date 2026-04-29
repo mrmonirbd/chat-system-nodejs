@@ -21,8 +21,36 @@
         
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f3f4f6;
             min-height: 100vh;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            color: #cbd5e1;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .sidebar-link:hover,
+        .sidebar-link.active {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        .sidebar-title {
+            color: #94a3b8;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 800;
+            padding: 0 12px;
+            margin: 22px 0 8px;
         }
         
         /* Custom Scrollbar */
@@ -112,26 +140,90 @@
             width: 100% !important;
             height: 260px !important;
         }
+
+        .live-wave {
+            position: relative;
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: #22c55e;
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+            animation: livePulse 1.6s infinite;
+        }
+
+        .live-wave::after {
+            content: "";
+            position: absolute;
+            inset: -7px;
+            border: 2px solid rgba(34, 197, 94, 0.35);
+            border-radius: 999px;
+            animation: liveRing 1.6s infinite;
+        }
+
+        .live-pop {
+            animation: livePop 0.45s ease;
+        }
+
+        @keyframes livePulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45); }
+            50% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+        }
+
+        @keyframes liveRing {
+            0% { transform: scale(0.75); opacity: 0.9; }
+            100% { transform: scale(1.35); opacity: 0; }
+        }
+
+        @keyframes livePop {
+            0% { transform: scale(1); }
+            45% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <div class="flex min-h-screen overflow-hidden">
+        <aside class="w-72 bg-[#1e293b] text-white flex-shrink-0 overflow-y-auto hidden lg:block">
+            <div class="p-5 border-b border-slate-700">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-chart-line text-2xl text-blue-400"></i>
+                    <span class="text-xl font-bold">emilus</span>
+                </div>
+            </div>
+            <nav class="py-6 px-4">
+                <p class="sidebar-title">Dashboard</p>
+                <a href="#analytics" class="sidebar-link active"><i class="fas fa-tachometer-alt w-5"></i><span>Default</span></a>
+                <a href="#messagesChart" class="sidebar-link"><i class="fas fa-chart-line w-5"></i><span>Analytic</span></a>
+                <a href="#sites" class="sidebar-link"><i class="fas fa-globe w-5"></i><span>Sites</span></a>
+                <p class="sidebar-title">Apps</p>
+                <a href="/support-panel" class="sidebar-link"><i class="fas fa-comment-dots w-5"></i><span>Chat</span></a>
+                <a href="#support" class="sidebar-link"><i class="fas fa-headset w-5"></i><span>Support Agents</span></a>
+                <a href="#sitesList" class="sidebar-link"><i class="fas fa-key w-5"></i><span>API Keys</span></a>
+                <p class="sidebar-title">Components</p>
+                <a href="#messagesChart" class="sidebar-link"><i class="fas fa-chart-pie w-5"></i><span>Charts</span></a>
+                <a href="#sitesList" class="sidebar-link"><i class="fas fa-table w-5"></i><span>Data Display</span></a>
+                <p class="sidebar-title">System</p>
+                <button onclick="logout()" class="sidebar-link w-full text-left"><i class="fas fa-sign-out-alt w-5"></i><span>Logout</span></button>
+            </nav>
+        </aside>
+        <main class="flex-1 overflow-y-auto">
+    <div class="p-6">
         <!-- Header -->
-        <div class="fade-in">
-            <div class="flex justify-between items-center mb-8 bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-xl">
+        <div class="fade-in hidden">
+            <div class="flex justify-between items-center mb-6 bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                 <div>
-                    <h1 class="text-3xl font-bold text-white">
+                    <h1 class="text-2xl font-bold text-gray-800">
                         <i class="fas fa-comments mr-3"></i>Chat Support System
                     </h1>
-                    <p class="text-white/80 mt-2">Manage sites, support agents, and monitor all chats</p>
+                    <p class="text-gray-500 mt-2">Manage sites, support agents, and monitor all chats</p>
                 </div>
                 <div class="flex items-center gap-4">
-                    <div class="text-white text-right">
+                    <div class="text-gray-700 text-right">
                         <div class="flex items-center gap-2">
-                            <i class="fas fa-user-circle text-2xl"></i>
+                            <i class="fas fa-user-circle text-2xl text-blue-600"></i>
                             <span id="adminName" class="font-semibold">Admin</span>
                         </div>
-                        <button onclick="logout()" class="text-sm text-white/80 hover:text-white mt-1 transition">
+                        <button onclick="logout()" class="text-sm text-gray-500 hover:text-blue-600 mt-1 transition">
                             <i class="fas fa-sign-out-alt mr-1"></i>Logout
                         </button>
                     </div>
@@ -140,11 +232,11 @@
         </div>
 
         <!-- Analytics Dashboard -->
-        <div class="bg-white rounded-2xl shadow-xl p-5 mb-8 fade-in">
+        <div id="analytics" class="mb-6 fade-in">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-chart-line text-indigo-600 mr-2"></i>Analytics</h2>
-                    <p class="text-gray-500 text-sm mt-1">CPU, connected sites, messages, sites, and support agent trends</p>
+                    <h2 class="text-2xl font-bold text-gray-800">Analytics Dashboard</h2>
+                    <p class="text-gray-500 text-sm mt-1">Live system performance and support activity</p>
                 </div>
                 <div class="flex flex-wrap gap-2" id="rangeButtons">
                     <button class="range-btn" data-range="7d" onclick="setAnalyticsRange('7d')">7 Day</button>
@@ -153,59 +245,74 @@
                     <button class="range-btn" data-range="1y" onclick="setAnalyticsRange('1y')">1 Year</button>
                 </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <div class="bg-indigo-50 rounded-xl p-4">
-                    <p class="text-indigo-600 text-xs font-bold uppercase">CPU Usage</p>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                    <p class="text-gray-500 text-sm">CPU Usage</p>
                     <p class="text-3xl font-bold text-gray-800 mt-2" id="cpuUsage">0%</p>
+                    <p class="text-sm text-blue-600 mt-1"><i class="fas fa-microchip mr-1"></i>Live server load</p>
                 </div>
-                <div class="bg-emerald-50 rounded-xl p-4">
-                    <p class="text-emerald-600 text-xs font-bold uppercase">Connected Sites</p>
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                    <p class="text-gray-500 text-sm">Connected Sites</p>
                     <p class="text-3xl font-bold text-gray-800 mt-2" id="connectedSites">0</p>
+                    <p class="text-sm text-green-600 mt-1"><i class="fas fa-wifi mr-1"></i>Online widgets</p>
                 </div>
-                <div class="bg-blue-50 rounded-xl p-4">
-                    <p class="text-blue-600 text-xs font-bold uppercase">Total Sites</p>
-                    <p class="text-3xl font-bold text-gray-800 mt-2" id="totalSites">0</p>
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100" id="activeChatCard">
+                    <div class="flex items-center justify-between gap-3">
+                        <p class="text-gray-500 text-sm">Active Chat</p>
+                        <span class="live-wave" title="Live"></span>
+                    </div>
+                    <div class="flex items-end gap-2 mt-2">
+                        <p class="text-3xl font-bold text-gray-800" id="activeChats">0</p>
+                        <span class="text-xs font-bold text-green-600 mb-1">LIVE</span>
+                    </div>
+                    <p class="text-sm text-green-600 mt-1">Chat boxes opened</p>
                 </div>
-                <div class="bg-green-50 rounded-xl p-4">
-                    <p class="text-green-600 text-xs font-bold uppercase">Support Agents</p>
-                    <p class="text-3xl font-bold text-gray-800 mt-2" id="totalAgents">0</p>
-                </div>
-                <div class="bg-yellow-50 rounded-xl p-4">
-                    <p class="text-yellow-600 text-xs font-bold uppercase">Active Chat</p>
-                    <p class="text-3xl font-bold text-gray-800 mt-2" id="activeChats">0</p>
-                </div>
-                <div class="bg-purple-50 rounded-xl p-4">
-                    <p class="text-purple-600 text-xs font-bold uppercase">Total Messages</p>
+                <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                    <p class="text-gray-500 text-sm">Total Messages</p>
                     <p class="text-3xl font-bold text-gray-800 mt-2" id="totalMessages">0</p>
+                    <p class="text-sm text-indigo-600 mt-1"><i class="fas fa-arrow-up mr-1"></i>All-time volume</p>
                 </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 fade-in">
-            <div class="bg-white rounded-2xl shadow-xl p-5 chart-panel">
-                <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-message text-indigo-600 mr-2"></i>Messages</h3>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 fade-in">
+            <div class="bg-white rounded-xl shadow-sm p-5 chart-panel border border-gray-100 lg:col-span-3">
+                <h3 class="font-semibold text-gray-800 mb-3">Messages</h3>
                 <canvas id="messagesChart"></canvas>
             </div>
-            <div class="bg-white rounded-2xl shadow-xl p-5 chart-panel">
-                <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-globe text-blue-600 mr-2"></i>Total Site Growth</h3>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 fade-in">
+            <div class="bg-white rounded-xl shadow-sm p-5 chart-panel border border-gray-100">
                 <canvas id="sitesChart"></canvas>
+                <p class="text-center mt-2 text-gray-600">Total Site Growth</p>
             </div>
-            <div class="bg-white rounded-2xl shadow-xl p-5 chart-panel lg:col-span-2">
-                <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-headset text-green-600 mr-2"></i>Support Agent Growth</h3>
+            <div class="bg-white rounded-xl shadow-sm p-5 chart-panel border border-gray-100">
                 <canvas id="supportAgentsChart"></canvas>
+                <p class="text-center mt-2 text-gray-600">Support Agent Growth</p>
             </div>
         </div>
 
         <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 fade-in">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 fade-in">
+            <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                <p class="text-gray-500 text-sm">Total Sites</p>
+                <p class="text-3xl font-bold text-gray-800" id="totalSites">0</p>
+                <p class="text-green-600 text-sm">Managed websites</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+                <p class="text-gray-500 text-sm">Support Agents</p>
+                <p class="text-3xl font-bold text-gray-800" id="totalAgents">0</p>
+                <p class="text-green-600 text-sm">Created by admin</p>
+            </div>
             <!-- Create Site Card -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
-                    <h2 class="text-xl font-bold text-white">
+            <div id="sites" class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="px-5 py-4 border-b border-gray-100">
+                    <h2 class="font-semibold text-gray-800">
                         <i class="fas fa-plus-circle mr-2"></i>Create New Site
                     </h2>
                 </div>
-                <div class="p-6">
+                <div class="p-5">
                     <div class="space-y-4">
                         <div>
                             <label class="block text-gray-700 font-medium mb-2">
@@ -222,7 +329,7 @@
                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
                         </div>
                         <button onclick="createSite()" 
-                                class="w-full bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold py-3 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+                                class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition">
                             <i class="fas fa-check-circle mr-2"></i>Create Site
                         </button>
                     </div>
@@ -230,14 +337,14 @@
             </div>
 
             <!-- Add Support Agent Card -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-                <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
-                    <h2 class="text-xl font-bold text-white">
+            <div id="support" class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 lg:col-span-3">
+                <div class="px-5 py-4 border-b border-gray-100">
+                    <h2 class="font-semibold text-gray-800">
                         <i class="fas fa-user-plus mr-2"></i>Add Support Agent
                     </h2>
                 </div>
-                <div class="p-6">
-                    <div class="space-y-4">
+                <div class="p-5">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                         <div>
                             <label class="block text-gray-700 font-medium mb-2">
                                 <i class="fas fa-globe mr-2 text-gray-400"></i>Select Site
@@ -269,7 +376,7 @@
                                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent">
                         </div>
                         <button onclick="addSupport()" 
-                                class="w-full bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold py-3 rounded-xl hover:shadow-lg transition-all duration-300 transform hover:scale-105">
+                                class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition">
                             <i class="fas fa-user-check mr-2"></i>Add Support Agent
                         </button>
                     </div>
@@ -278,9 +385,9 @@
         </div>
 
         <!-- Sites List Section -->
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden fade-in">
-            <div class="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
-                <h2 class="text-xl font-bold text-white">
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden fade-in border border-gray-100">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h2 class="font-semibold text-gray-800">
                     <i class="fas fa-list mr-2"></i>Your Websites & Integration
                 </h2>
             </div>
@@ -293,6 +400,8 @@
                 </div>
             </div>
         </div>
+    </div>
+        </main>
     </div>
 
     <script>
@@ -495,6 +604,20 @@
         });
     }
 
+    function updateActiveChatCount(count) {
+        const activeChatsEl = document.getElementById('activeChats');
+        const activeChatCard = document.getElementById('activeChatCard');
+        if (!activeChatsEl) return;
+
+        activeChatsEl.innerText = count || 0;
+
+        if (activeChatCard) {
+            activeChatCard.classList.remove('live-pop');
+            void activeChatCard.offsetWidth;
+            activeChatCard.classList.add('live-pop');
+        }
+    }
+
     async function loadAnalytics() {
         try {
             const res = await fetch(`${API_URL}/admin/analytics?range=${analyticsRange}`, {
@@ -507,7 +630,7 @@
             document.getElementById('connectedSites').innerText = data.totals.connectedSites;
             document.getElementById('totalSites').innerText = data.totals.totalSites;
             document.getElementById('totalAgents').innerText = data.totals.supportAgents;
-            document.getElementById('activeChats').innerText = data.totals.activeChats;
+            updateActiveChatCount(data.totals.activeChats);
             document.getElementById('totalMessages').innerText = data.totals.totalMessages;
 
             renderLineChart('messagesChart', 'Messages', data.charts.messages.labels, data.charts.messages.data, '#4f46e5');
@@ -859,7 +982,12 @@ function initAdminSocket() {
     });
 
     adminSocket.on('active-chat-count', (data) => {
-        document.getElementById('activeChats').innerText = data.count || 0;
+        updateActiveChatCount(data.count || 0);
+    });
+
+    adminSocket.on('total-message-count', (data) => {
+        document.getElementById('totalMessages').innerText = data.count || 0;
+        loadAnalytics();
     });
     
     adminSocket.on('connect_error', (err) => {

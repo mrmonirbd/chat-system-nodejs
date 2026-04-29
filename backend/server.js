@@ -174,6 +174,12 @@ function getCpuUsagePercent() {
   return Math.min(100, Math.round((os.loadavg()[0] / cpuCount) * 100));
 }
 
+async function emitTotalMessageCount() {
+  const totalMessages = await Message.count();
+  io.emit('total-message-count', { count: totalMessages });
+  return totalMessages;
+}
+
 async function findValidPasswordResetToken(token, email) {
   const normalizedEmail = String(email || '').trim().toLowerCase();
   if (!token || !normalizedEmail) return null;
@@ -629,6 +635,21 @@ app.get('/api/users/me', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/users/list', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    const users = await User.findAll({
+      attributes: ['id', 'name', 'email', 'role', 'siteId', 'isActive', 'createdAt'],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/auth/change-password', authMiddleware, async (req, res) => {
   try {
     const currentPassword = String(req.body.currentPassword || '');
@@ -985,6 +1006,25 @@ app.get('/api/threads/site/:siteId', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/admin/threads', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    const threads = await Thread.findAll({
+      include: [
+        { model: Site, attributes: ['id', 'name', 'domain'] },
+        { model: User, as: 'AssignedSupport', attributes: ['id', 'name', 'email'] }
+      ],
+      order: [['lastMessageAt', 'DESC']],
+      limit: 300
+    });
+
+    res.json(threads);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get Messages by Thread
 app.get('/api/threads/:threadId/messages', async (req, res) => {
   try {
@@ -1208,6 +1248,7 @@ socket.on('visitor-message', async (data) => {
         });
         
         console.log(`Visitor message saved, ID: ${newMessage.id}`);
+        await emitTotalMessageCount();
         
         // Update thread last message time
         await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
@@ -1264,6 +1305,7 @@ socket.on('visitor-message', async (data) => {
       });
       
       console.log(`Support message saved, ID: ${newMessage.id}`);
+      await emitTotalMessageCount();
       
       // Update thread last message time
       await Thread.update({ lastMessageAt: new Date() }, { where: { id: threadIdNum } });
