@@ -554,6 +554,37 @@ app.get('/api/users/me', authMiddleware, async (req, res) => {
   }
 });
 
+app.post('/api/auth/change-password', authMiddleware, async (req, res) => {
+  try {
+    const currentPassword = String(req.body.currentPassword || '');
+    const newPassword = String(req.body.newPassword || '');
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    await PasswordResetToken.destroy({ where: { userId: user.id } });
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create Site
 app.post('/api/sites/create', authMiddleware, async (req, res) => {
   try {
