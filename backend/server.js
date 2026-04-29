@@ -240,6 +240,59 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { name, email, password, role = 'admin', siteId, acceptedTerms, acceptedPrivacy } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email and password are required' });
+    }
+
+    if (!acceptedTerms || !acceptedPrivacy) {
+      return res.status(400).json({ error: 'Terms and privacy policy must be accepted' });
+    }
+
+    if (!['admin', 'support'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    if (role === 'support' && !siteId) {
+      return res.status(400).json({ error: 'Site ID is required for support agents' });
+    }
+
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) return res.status(400).json({ error: 'User already exists' });
+
+    if (role === 'support') {
+      const site = await Site.findByPk(siteId);
+      if (!site) return res.status(404).json({ error: 'Site not found' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      role,
+      siteId: role === 'support' ? siteId : null,
+      isActive: true
+    });
+
+    const token = jwt.sign(
+      { id: user.id, name: user.name, email: user.email, role: user.role, siteId: user.siteId },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, siteId: user.siteId }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Verify token
 app.get('/api/auth/verify', authMiddleware, async (req, res) => {
   try {
