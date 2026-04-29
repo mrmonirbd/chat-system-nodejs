@@ -174,6 +174,126 @@ function getRamUsagePercent() {
   return Math.min(100, Math.round(((totalMemory - freeMemory) / totalMemory) * 100));
 }
 
+const SECURITY_EVENT_LIMIT = 10000;
+const securityEvents = [];
+const suspiciousPathPattern = /(\.env|wp-admin|wp-login|phpmyadmin|adminer|\/etc\/passwd|select\s+.*from|union\s+select|<script|%3cscript|eval\(|\.\.\/|\/\.git|config\.php)/i;
+
+function getClientIp(req) {
+  const forwardedFor = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  return forwardedFor || req.socket.remoteAddress || req.ip || 'unknown';
+}
+
+function shouldTrackSecurityRequest(req) {
+  const pathName = req.path || req.url || '';
+  if (pathName.startsWith('/_next/') || pathName.startsWith('/frontend/')) return false;
+  return !/\.(css|js|map|png|jpg|jpeg|gif|svg|ico|woff2?)$/i.test(pathName);
+}
+
+function pushSecurityEvent(event) {
+  securityEvents.push(event);
+  if (securityEvents.length > SECURITY_EVENT_LIMIT) {
+    securityEvents.splice(0, securityEvents.length - SECURITY_EVENT_LIMIT);
+  }
+}
+
+function buildSecurityDailySeries(days, predicate) {
+  const counts = new Map();
+
+  securityEvents.forEach(event => {
+    if (!predicate(event)) return;
+    const key = formatDateKey(event.createdAt);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+
+  return buildDailySeries(days, Array.from(counts.entries()).map(([date, count]) => ({ date, count })));
+}
+
+function getSecuritySummary(days) {
+  const since = new Date();
+  since.setHours(0, 0, 0, 0);
+  since.setDate(since.getDate() - (days - 1));
+
+  const lastMinute = Date.now() - 60000;
+  const rangedEvents = securityEvents.filter(event => event.createdAt >= since);
+  const recentEvents = securityEvents.filter(event => event.createdAt.getTime() >= lastMinute);
+  const recentByIp = new Map();
+
+  recentEvents.forEach(event => {
+    recentByIp.set(event.ip, (recentByIp.get(event.ip) || 0) + 1);
+  });
+
+  const suspiciousEvents = rangedEvents.filter(event => event.suspicious);
+  const failedLoginEvents = rangedEvents.filter(event => event.failedLogin);
+  const errorEvents = rangedEvents.filter(event => event.status >= 500);
+  const topIpMap = new Map();
+
+  rangedEvents.forEach(event => {
+    if (!event.suspicious && !event.failedLogin && event.status < 400) return;
+    const current = topIpMap.get(event.ip) || {
+      ip: event.ip,
+      count: 0,
+      failedLogins: 0,
+      lastPath: event.path,
+      lastSeen: event.createdAt
+    };
+    current.count += 1;
+    if (event.failedLogin) current.failedLogins += 1;
+    if (event.createdAt >= current.lastSeen) {
+      current.lastPath = event.path;
+      current.lastSeen = event.createdAt;
+    }
+    topIpMap.set(event.ip, current);
+  });
+
+  const maxSingleIpMinute = Math.max(...recentByIp.values(), 0);
+  const requestsPerMinute = recentEvents.length;
+  const ddosScore = Math.min(100, Math.round((requestsPerMinute / 200) * 60 + (maxSingleIpMinute / 80) * 40));
+
+  return {
+    totals: {
+      requestsPerMinute,
+      failedLogins: failedLoginEvents.length,
+      suspiciousRequests: suspiciousEvents.length,
+      errorRate: rangedEvents.length ? Math.round((errorEvents.length / rangedEvents.length) * 100) : 0,
+      ddosScore
+    },
+    charts: {
+      requests: buildSecurityDailySeries(days, event => event.createdAt >= since),
+      failedLogins: buildSecurityDailySeries(days, event => event.createdAt >= since && event.failedLogin),
+      suspiciousRequests: buildSecurityDailySeries(days, event => event.createdAt >= since && event.suspicious)
+    },
+    topSuspiciousIps: Array.from(topIpMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6)
+      .map(item => ({
+        ...item,
+        lastSeen: item.lastSeen.toISOString()
+      }))
+  };
+}
+
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+
+  res.on('finish', () => {
+    if (!shouldTrackSecurityRequest(req)) return;
+
+    const pathName = req.originalUrl || req.url || '';
+    pushSecurityEvent({
+      createdAt: new Date(),
+      ip: getClientIp(req),
+      method: req.method,
+      path: pathName.slice(0, 160),
+      status: res.statusCode,
+      durationMs: Date.now() - startedAt,
+      suspicious: suspiciousPathPattern.test(pathName),
+      failedLogin: req.path === '/api/auth/login' && res.statusCode === 401
+    });
+  });
+
+  next();
+});
+
 async function emitTotalMessageCount() {
   const totalMessages = await Message.count();
   io.emit('total-message-count', { count: totalMessages });
@@ -939,6 +1059,7 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
     const since = new Date();
     since.setHours(0, 0, 0, 0);
     since.setDate(since.getDate() - (days - 1));
+    const securitySummary = getSecuritySummary(days);
 
     const dateExpr = sequelize.fn('DATE', sequelize.col('createdAt'));
     const countExpr = sequelize.fn('COUNT', sequelize.col('id'));
@@ -1017,7 +1138,8 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
         totalSites,
         supportAgents,
         activeChats: getActiveVisitorChatCount(),
-        totalMessages
+        totalMessages,
+        ...securitySummary.totals
       },
       charts: {
         messages: buildDailySeries(days, messageRows),
@@ -1025,7 +1147,13 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
         agentMessages: buildDailySeries(days, agentMessageRows),
         sitesDaily: buildDailySeries(days, siteRows),
         sites: buildCumulativeDailySeries(days, siteRows, siteBaseline),
-        supportAgents: buildCumulativeDailySeries(days, supportRows, supportBaseline)
+        supportAgents: buildCumulativeDailySeries(days, supportRows, supportBaseline),
+        securityRequests: securitySummary.charts.requests,
+        failedLogins: securitySummary.charts.failedLogins,
+        suspiciousRequests: securitySummary.charts.suspiciousRequests
+      },
+      security: {
+        topSuspiciousIps: securitySummary.topSuspiciousIps
       }
     });
   } catch (err) {

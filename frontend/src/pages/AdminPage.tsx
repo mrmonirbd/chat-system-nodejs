@@ -27,6 +27,11 @@ type Analytics = {
     totalMessages: number;
     totalSites: number;
     supportAgents: number;
+    requestsPerMinute: number;
+    failedLogins: number;
+    suspiciousRequests: number;
+    errorRate: number;
+    ddosScore: number;
   };
   charts?: {
     messages?: ChartSeries;
@@ -35,12 +40,26 @@ type Analytics = {
     sitesDaily?: ChartSeries;
     sites?: ChartSeries;
     supportAgents?: ChartSeries;
+    securityRequests?: ChartSeries;
+    failedLogins?: ChartSeries;
+    suspiciousRequests?: ChartSeries;
+  };
+  security?: {
+    topSuspiciousIps?: SecurityIp[];
   };
 };
 
 type ChartSeries = {
   labels: string[];
   data: number[];
+};
+
+type SecurityIp = {
+  ip: string;
+  count: number;
+  failedLogins: number;
+  lastPath: string;
+  lastSeen: string;
 };
 
 type Site = {
@@ -583,6 +602,9 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
               <MetricCard label="Total Chat" value={analytics?.totals.totalMessages || 0} delta={`${analytics?.totals.totalMessages || 0}`} note="All messages sent" trend="up" />
               <MetricCard label="Total Member" value={users.length} delta={`${analytics?.totals.supportAgents || 0}`} note="Support agents included" trend="up" />
               <MetricCard label="Total Site" value={analytics?.totals.totalSites || 0} delta={`${analytics?.totals.connectedSites || 0}`} note="Connected sites now" trend="up" />
+              <MetricCard label="Requests/min" value={analytics?.totals.requestsPerMinute || 0} delta={`${analytics?.totals.ddosScore || 0}%`} note="DDoS risk score" trend={(analytics?.totals.ddosScore || 0) > 70 ? 'down' : 'up'} />
+              <MetricCard label="Failed Login" value={analytics?.totals.failedLogins || 0} delta={`${analytics?.totals.suspiciousRequests || 0}`} note="Suspicious requests" trend={(analytics?.totals.failedLogins || 0) > 0 ? 'down' : 'up'} />
+              <MetricCard label="Error Rate" value={`${analytics?.totals.errorRate || 0}%`} delta={`${analytics?.totals.errorRate || 0}%`} note="Server 5xx response rate" trend={(analytics?.totals.errorRate || 0) > 10 ? 'down' : 'up'} />
             </div>
 
             <div className="admin-dashboard-charts">
@@ -613,28 +635,31 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
                 secondaryLabel="Daily"
                 total={analytics?.totals.totalSites || 0}
               />
+              <MultiWaveChart
+                title="Security Traffic"
+                primary={analytics?.charts?.securityRequests}
+                secondary={analytics?.charts?.suspiciousRequests}
+                primaryLabel="Requests"
+                secondaryLabel="Suspicious"
+                total={analytics?.totals.requestsPerMinute || 0}
+              />
+              <MultiWaveChart
+                title="Failed Login"
+                primary={analytics?.charts?.failedLogins}
+                primaryLabel="Failed"
+                total={analytics?.totals.failedLogins || 0}
+              />
             </div>
 
-            <div className="admin-dashboard-bottom">
-              <div className="admin-panel-card">
-                <h2>New Join Member</h2>
-                <div className="admin-list">
-                  {supportUsers.slice(0, 5).map(user => (
-                    <div className="admin-list-row compact" key={user.id}>
-                      <span><strong>{user.name}</strong><small>{user.email}</small></span>
-                      <span className="status-pill">Add</span>
-                    </div>
-                  ))}
-                  {supportUsers.length === 0 && <p className="muted">No support agents yet.</p>}
-                </div>
-              </div>
+            <div className="admin-security-row">
               <DataTable
-                headers={['Customer', 'Date', 'Site', 'Status']}
-                rows={threads.slice(0, 5).map(thread => [
-                  thread.visitorName || 'Guest',
-                  formatShortDate(thread.lastMessageAt),
-                  thread.Site?.name || 'Unknown site',
-                  thread.status
+                headers={['IP', 'Events', 'Failed Login', 'Last Path', 'Last Seen']}
+                rows={(analytics?.security?.topSuspiciousIps || []).map(item => [
+                  item.ip,
+                  item.count,
+                  item.failedLogins,
+                  item.lastPath,
+                  formatShortDate(item.lastSeen)
                 ])}
               />
             </div>
