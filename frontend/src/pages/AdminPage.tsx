@@ -18,6 +18,7 @@ type AdminSocket = {
 type Analytics = {
   totals: {
     cpuUsage: number;
+    ramUsage: number;
     connectedSites: number;
     activeChats: number;
     totalMessages: number;
@@ -331,14 +332,6 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
 
         {view === 'dashboard' && (
           <>
-            <div className="admin-card-grid">
-              <Metric label="CPU Usage" value={`${analytics?.totals.cpuUsage || 0}%`} />
-              <Metric label="Connected Sites" value={analytics?.totals.connectedSites || 0} />
-              <Metric label="Active Chat" value={analytics?.totals.activeChats || 0} live />
-              <Metric label="Total Messages" value={analytics?.totals.totalMessages || 0} />
-              <Metric label="Total Sites" value={analytics?.totals.totalSites || 0} />
-              <Metric label="Support Agents" value={analytics?.totals.supportAgents || 0} />
-            </div>
             <div className="admin-range-tabs">
               <button className={range === '1d' ? 'active' : ''} onClick={() => setRange('1d')}>1 Day</button>
               <button className={range === '7d' ? 'active' : ''} onClick={() => setRange('7d')}>7 Day</button>
@@ -346,22 +339,66 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
               <button className={range === '6m' ? 'active' : ''} onClick={() => setRange('6m')}>6 Month</button>
               <button className={range === '1y' ? 'active' : ''} onClick={() => setRange('1y')}>1 Year</button>
             </div>
-            <div className="admin-chart-grid">
-              <CurveChart title="Messages Curve" series={analytics?.charts?.messages} color="#3b82f6" />
-              <CurveChart title="Total Sites" series={analytics?.charts?.sites} color="#10b981" />
-              <CurveChart title="Support Agents" series={analytics?.charts?.supportAgents} color="#f59e0b" />
+            <div className="admin-dashboard-top">
+              <GaugeCard title="CPU Usage" value={analytics?.totals.cpuUsage || 0} note="Server usage right now" />
+              <GaugeCard title="RAM Usage" value={analytics?.totals.ramUsage || 0} note="Memory usage right now" />
+              <MetricCard label="Live Chat" value={analytics?.totals.activeChats || 0} delta={`${analytics?.totals.activeChats || 0}`} note="Open chat boxes now" trend="up" />
+              <MetricCard label="Total Thread" value={threads.length} delta={`${threads.length}`} note="All client threads" trend="up" />
+              <MetricCard label="Total Chat" value={analytics?.totals.totalMessages || 0} delta={`${analytics?.totals.totalMessages || 0}`} note="All messages sent" trend="up" />
+              <MetricCard label="Total Member" value={users.length} delta={`${analytics?.totals.supportAgents || 0}`} note="Support agents included" trend="up" />
+              <MetricCard label="Total Site" value={analytics?.totals.totalSites || 0} delta={`${analytics?.totals.connectedSites || 0}`} note="Connected sites now" trend="up" />
             </div>
-            <div className="admin-panel-card">
-              <h2>Online Support Agents</h2>
-              <div className="admin-list">
-                {onlineAgents.length === 0 && <p className="muted">No agents online.</p>}
-                {onlineAgents.map(agent => (
-                  <div className="admin-list-row" key={`${agent.siteId}-${agent.id}`}>
-                    <span><strong>{agent.name}</strong><small>Site #{agent.siteId}</small></span>
-                    <span className="status-pill">Online</span>
-                  </div>
-                ))}
+
+            <div className="admin-dashboard-charts">
+              <MultiWaveChart
+                title="Live Message Curve"
+                primary={analytics?.charts?.messages}
+                secondary={analytics?.charts?.sites}
+                primaryLabel="Messages"
+                secondaryLabel="Sites"
+              />
+              <MultiWaveChart
+                title="Total Chat"
+                primary={analytics?.charts?.messages}
+                primaryLabel="Messages"
+                total={analytics?.totals.totalMessages || 0}
+              />
+              <MultiWaveChart
+                title="Total Member"
+                primary={analytics?.charts?.supportAgents}
+                primaryLabel="Members"
+                total={users.length}
+              />
+              <MultiWaveChart
+                title="Total Site"
+                primary={analytics?.charts?.sites}
+                primaryLabel="Sites"
+                total={analytics?.totals.totalSites || 0}
+              />
+            </div>
+
+            <div className="admin-dashboard-bottom">
+              <div className="admin-panel-card">
+                <h2>New Join Member</h2>
+                <div className="admin-list">
+                  {supportUsers.slice(0, 5).map(user => (
+                    <div className="admin-list-row compact" key={user.id}>
+                      <span><strong>{user.name}</strong><small>{user.email}</small></span>
+                      <span className="status-pill">Add</span>
+                    </div>
+                  ))}
+                  {supportUsers.length === 0 && <p className="muted">No support agents yet.</p>}
+                </div>
               </div>
+              <DataTable
+                headers={['Customer', 'Date', 'Site', 'Status']}
+                rows={threads.slice(0, 5).map(thread => [
+                  thread.visitorName || 'Guest',
+                  formatShortDate(thread.lastMessageAt),
+                  thread.Site?.name || 'Unknown site',
+                  thread.status
+                ])}
+              />
             </div>
           </>
         )}
@@ -447,6 +484,84 @@ function Metric({ label, value, live = false }: { label: string; value: string |
   );
 }
 
+function MetricCard({ label, value, delta, note, trend }: { label: string; value: string | number; delta: string; note: string; trend: 'up' | 'down' }) {
+  return (
+    <div className="admin-metric-card">
+      <p>{label}</p>
+      <div className="admin-metric-value">
+        <strong>{value}</strong>
+        <span className={trend === 'up' ? 'positive' : 'negative'}>{delta}{trend === 'up' ? '↗' : '↘'}</span>
+      </div>
+      <small>{note}</small>
+    </div>
+  );
+}
+
+function GaugeCard({ title, value, note }: { title: string; value: number; note: string }) {
+  const clamped = Math.max(0, Math.min(100, Math.round(value)));
+  const circumference = 2 * Math.PI * 46;
+  const offset = circumference - (clamped / 100) * circumference;
+
+  return (
+    <div className="admin-gauge-card">
+      <h2>{title}</h2>
+      <svg className="admin-gauge" viewBox="0 0 120 120" role="img" aria-label={`${title} ${clamped}%`}>
+        <circle cx="60" cy="60" r="46" />
+        <circle className="progress" cx="60" cy="60" r="46" strokeDasharray={circumference} strokeDashoffset={offset} />
+        <text x="60" y="66" textAnchor="middle">{clamped}%</text>
+      </svg>
+      <p>{note}</p>
+    </div>
+  );
+}
+
+function MultiWaveChart({ title, primary, secondary, primaryLabel, secondaryLabel, total }: { title: string; primary?: ChartSeries; secondary?: ChartSeries; primaryLabel: string; secondaryLabel?: string; total?: string | number }) {
+  const first = primary?.data?.length ? primary.data : [0];
+  const second = secondary?.data?.length ? secondary.data : [0];
+  const labels = primary?.labels?.length ? primary.labels : secondary?.labels || [];
+  const max = Math.max(...first, ...second, 1);
+  const primaryPath = buildSeriesPath(first, max);
+  const secondaryPath = buildSeriesPath(second, max);
+  const tickLabels = labels.length > 12 ? labels.filter((_, index) => index % Math.ceil(labels.length / 12) === 0) : labels;
+
+  return (
+    <div className="admin-wide-chart">
+      <div className="admin-chart-title-row">
+        <h2>{title}</h2>
+        <div className="admin-chart-legend">
+          <span><i className="blue"></i>{primaryLabel}</span>
+          {secondaryLabel && <span><i className="green"></i>{secondaryLabel}</span>}
+        </div>
+      </div>
+      <svg className="admin-wide-wave" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {[20, 40, 60, 80].map(y => <line key={y} x1="0" y1={y} x2="100" y2={y} />)}
+        <path d={primaryPath} className="blue-line" />
+        {secondaryLabel && <path d={secondaryPath} className="green-line" />}
+      </svg>
+      {total !== undefined && <strong className="admin-chart-total">{total}</strong>}
+      <div className="admin-chart-labels">
+        {tickLabels.slice(0, 12).map(label => <span key={label}>{formatTinyDate(label)}</span>)}
+      </div>
+    </div>
+  );
+}
+
+function MiniWaveMetric({ title, value, series, color }: { title: string; value: string | number; series?: ChartSeries; color: string }) {
+  const data = series?.data?.length ? series.data : [0];
+  const max = Math.max(...data, 1);
+  const path = buildSeriesPath(data, max);
+
+  return (
+    <div className="admin-mini-wave-card">
+      <svg viewBox="0 0 100 52" preserveAspectRatio="none">
+        <path d={path} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" />
+      </svg>
+      <strong>{value}</strong>
+      <p>{title}</p>
+    </div>
+  );
+}
+
 function CurveChart({ title, series, color, large = false }: { title: string; series?: ChartSeries; color: string; large?: boolean }) {
   const data = series?.data?.length ? series.data : [0];
   const labels = series?.labels || [];
@@ -496,6 +611,28 @@ function buildSmoothPath(points: Array<{ x: number; y: number }>) {
 
     return `${path} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${point.x} ${point.y}`;
   }, '');
+}
+
+function buildSeriesPath(data: number[], max: number) {
+  const points = data.map((value, index) => {
+    const x = data.length === 1 ? 0 : (index / (data.length - 1)) * 100;
+    const y = 88 - (value / max) * 72;
+    return { x, y };
+  });
+
+  return buildSmoothPath(points);
+}
+
+function formatShortDate(dateValue: string) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+}
+
+function formatTinyDate(dateValue: string) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return dateValue;
+  return date.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
 }
 
 function DataTable({ headers, rows }: { headers: string[]; rows: Array<Array<string | number>> }) {

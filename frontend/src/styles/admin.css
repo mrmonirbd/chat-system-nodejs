@@ -257,6 +257,262 @@
     color: #fff;
 }
 
+.admin-dashboard-top {
+    display: grid;
+    grid-template-columns: repeat(2, 160px) repeat(5, minmax(0, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.admin-metric-card,
+.admin-gauge-card,
+.admin-wide-chart,
+.admin-mini-wave-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.admin-metric-card {
+    min-height: 104px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.admin-metric-card p {
+    color: #1f3556;
+    font-size: 12px;
+    font-weight: 900;
+    margin: 0 0 16px;
+}
+
+.admin-metric-value {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.admin-metric-value strong {
+    color: #1f3556;
+    font-size: 24px;
+    line-height: 1;
+}
+
+.admin-metric-value span {
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.admin-metric-value span.positive {
+    color: #10b981;
+}
+
+.admin-metric-value span.negative {
+    color: #ef4444;
+}
+
+.admin-metric-card small {
+    color: #8091ad;
+    font-size: 11px;
+    margin-top: 11px;
+}
+
+.admin-gauge-card {
+    padding: 14px;
+    text-align: center;
+}
+
+.admin-gauge-card h2 {
+    color: #1f3556;
+    font-size: 13px;
+    margin: 0 0 8px;
+}
+
+.admin-gauge-card p {
+    color: #94a3b8;
+    font-size: 11px;
+    line-height: 1.5;
+    margin: 6px 0 0;
+}
+
+.admin-gauge {
+    width: 104px;
+    max-width: 100%;
+    transform: rotate(-90deg);
+}
+
+.admin-gauge circle {
+    fill: none;
+    stroke: #edf1f7;
+    stroke-width: 9;
+    stroke-linecap: round;
+}
+
+.admin-gauge circle.progress {
+    stroke: #3b73f6;
+    transition: stroke-dashoffset 0.3s ease;
+}
+
+.admin-gauge text {
+    fill: #3b4a5e;
+    font-size: 16px;
+    font-weight: 800;
+    transform: rotate(90deg);
+    transform-origin: 60px 60px;
+}
+
+.admin-dashboard-mid,
+.admin-dashboard-charts {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.admin-dashboard-charts {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.admin-wide-chart {
+    position: relative;
+    min-height: 210px;
+    padding: 14px;
+}
+
+.admin-chart-title-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.admin-chart-title-row h2 {
+    color: #1f3556;
+    font-size: 12px;
+    margin: 0;
+}
+
+.admin-chart-legend {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    color: #475569;
+    font-size: 11px;
+}
+
+.admin-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.admin-chart-legend i {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+.admin-chart-legend i.blue {
+    background: #3b82f6;
+}
+
+.admin-chart-legend i.green {
+    background: #10b981;
+}
+
+.admin-wide-wave {
+    width: 100%;
+    height: 124px;
+    overflow: visible;
+}
+
+.admin-chart-total {
+    display: block;
+    color: #1f3556;
+    font-size: 24px;
+    line-height: 1;
+    margin-top: 6px;
+}
+
+.admin-wide-wave line {
+    stroke: #eef2f7;
+    stroke-width: 0.45;
+}
+
+.admin-wide-wave path {
+    fill: none;
+    stroke-width: 0.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.admin-wide-wave .blue-line {
+    stroke: #4f86ff;
+}
+
+.admin-wide-wave .green-line {
+    stroke: #16c98d;
+}
+
+.admin-chart-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    color: #475569;
+    font-size: 10px;
+    margin-top: 4px;
+}
+
+.admin-side-stack {
+    display: grid;
+    gap: 14px;
+}
+
+.admin-mini-wave-card {
+    min-height: 210px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+}
+
+.admin-mini-wave-card svg {
+    width: 100%;
+    height: 124px;
+    margin-bottom: 18px;
+}
+
+.admin-mini-wave-card path,
+.admin-curve-chart path {
+    stroke-width: 0.5;
+}
+
+.admin-mini-wave-card strong {
+    color: #1f3556;
+    font-size: 24px;
+}
+
+.admin-mini-wave-card p {
+    color: #8091ad;
+    font-size: 12px;
+    margin: 6px 0 0;
+}
+
+.admin-dashboard-bottom {
+    display: grid;
+    grid-template-columns: 480px 1fr;
+    gap: 18px;
+}
+
+.admin-list-row.compact {
+    align-items: center;
+}
+
 .admin-chart-grid {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
@@ -427,6 +683,10 @@
     .admin-chat-grid,
     .admin-two-col,
     .admin-card-grid,
+    .admin-dashboard-top,
+    .admin-dashboard-mid,
+    .admin-dashboard-charts,
+    .admin-dashboard-bottom,
     .admin-chart-grid,
     .admin-chart-grid.analytics {
         grid-template-columns: 1fr;

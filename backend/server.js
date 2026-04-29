@@ -175,6 +175,13 @@ function getCpuUsagePercent() {
   return Math.min(100, Math.round((os.loadavg()[0] / cpuCount) * 100));
 }
 
+function getRamUsagePercent() {
+  const totalMemory = os.totalmem();
+  const freeMemory = os.freemem();
+  if (!totalMemory) return 0;
+  return Math.min(100, Math.round(((totalMemory - freeMemory) / totalMemory) * 100));
+}
+
 async function emitTotalMessageCount() {
   const totalMessages = await Message.count();
   io.emit('total-message-count', { count: totalMessages });
@@ -806,6 +813,7 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
       days,
       totals: {
         cpuUsage: getCpuUsagePercent(),
+        ramUsage: getRamUsagePercent(),
         connectedSites: getConnectedSiteCount(),
         connectedThreads: getConnectedThreadCount(),
         totalSites,
