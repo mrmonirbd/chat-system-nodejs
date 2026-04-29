@@ -42,29 +42,31 @@
             const data = await response.json();
             CONFIG.siteId = data.siteId;
             console.log('✅ Config loaded, siteId:', CONFIG.siteId);
-            initWidget(data.settings);
+            initWidget(data.settings, data.supportAvailability);
         } catch (err) {
             console.error('❌ Config error:', err);
         }
     }
     
-    function initWidget(settings) {
+    function initWidget(settings, supportAvailability) {
+        const widgetColor = settings?.widgetColor || '#3B82F6';
+        const greetingMessage = settings?.greetingMessage || 'Hello! How can we help you?';
         const widgetHTML = `
             <div id="chat-widget-container" style="position:fixed; bottom:20px; right:20px; z-index:99999; font-family:system-ui, -apple-system, sans-serif;">
-                <div id="chat-toggle" style="background:#3B82F6; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
+                <div id="chat-toggle" style="background:${widgetColor}; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                     </svg>
                 </div>
                 <div id="chat-window" style="display:none; position:absolute; bottom:80px; right:0; width:380px; height:520px; background:white; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.2); flex-direction:column; overflow:hidden;">
-                    <div style="background:#3B82F6; padding:16px; color:white; display:flex; justify-content:space-between;">
+                    <div style="background:${widgetColor}; padding:16px; color:white; display:flex; justify-content:space-between;">
                         <span>💬 Customer Support</span>
                         <span id="chat-close" style="cursor:pointer; font-size:24px;">&times;</span>
                     </div>
                     <div id="chat-messages" style="flex:1; overflow-y:auto; padding:16px; background:#f9fafb;"></div>
                     <div style="padding:16px; background:white; border-top:1px solid #e5e7eb; display:flex; gap:10px;">
                         <input type="text" id="chat-input" placeholder="Type your message..." style="flex:1; padding:10px; border:1px solid #e5e7eb; border-radius:8px; outline:none;">
-                        <button id="chat-send" style="background:#3B82F6; border:none; color:white; padding:10px 18px; border-radius:8px; cursor:pointer;">Send</button>
+                        <button id="chat-send" style="background:${widgetColor}; border:none; color:white; padding:10px 18px; border-radius:8px; cursor:pointer;">Send</button>
                     </div>
                 </div>
             </div>
@@ -79,7 +81,7 @@
         const input = document.getElementById('chat-input');
         const send = document.getElementById('chat-send');
 
-        messagesDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7280;">Send a message to start the conversation.</div>';
+        showGreetingMessage(messagesDiv, greetingMessage, supportAvailability);
         
         toggle.onclick = () => {
             if (windowDiv.style.display === 'none' || windowDiv.style.display === '') {
@@ -98,6 +100,25 @@
         input.onkeypress = (e) => {
             if (e.key === 'Enter') send.onclick();
         };
+    }
+
+    function showGreetingMessage(messagesDiv, greetingMessage, supportAvailability) {
+        const availabilityMessage = supportAvailability?.available && supportAvailability.agentName
+            ? `${supportAvailability.agentName} is available now.`
+            : 'No support agent is available right now. We will reply as soon as possible.';
+
+        messagesDiv.innerHTML = `
+            <div style="display:flex; justify-content:flex-start; margin-bottom:12px;">
+                <div style="max-width:75%; padding:10px 14px; border-radius:12px; background:#e5e7eb; color:#1f2937; word-wrap:break-word;">
+                    ${escapeHtml(greetingMessage)}
+                </div>
+            </div>
+            <div style="display:flex; justify-content:flex-start; margin-bottom:12px;">
+                <div style="max-width:75%; padding:10px 14px; border-radius:12px; background:#e5e7eb; color:#1f2937; word-wrap:break-word;">
+                    ${escapeHtml(availabilityMessage)}
+                </div>
+            </div>
+        `;
     }
 
     async function sendVisitorMessage(messagesDiv, input, send) {

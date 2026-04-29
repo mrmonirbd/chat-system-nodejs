@@ -135,6 +135,59 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+const onlineSupportBySite = new Map();
+
+function markSupportOnline(socket, user) {
+  if (!user?.siteId) return;
+
+  const siteKey = String(user.siteId);
+  const supportKey = String(user.id);
+  let siteSupport = onlineSupportBySite.get(siteKey);
+
+  if (!siteSupport) {
+    siteSupport = new Map();
+    onlineSupportBySite.set(siteKey, siteSupport);
+  }
+
+  const supportInfo = siteSupport.get(supportKey) || {
+    id: user.id,
+    name: user.name || user.email || 'Support',
+    sockets: new Set()
+  };
+
+  supportInfo.sockets.add(socket.id);
+  siteSupport.set(supportKey, supportInfo);
+
+  socket.supportUser = user;
+  socket.supportSiteId = user.siteId;
+}
+
+function markSupportOffline(socket) {
+  if (!socket.supportUser?.id || !socket.supportSiteId) return;
+
+  const siteKey = String(socket.supportSiteId);
+  const supportKey = String(socket.supportUser.id);
+  const siteSupport = onlineSupportBySite.get(siteKey);
+  if (!siteSupport) return;
+
+  const supportInfo = siteSupport.get(supportKey);
+  if (!supportInfo) return;
+
+  supportInfo.sockets.delete(socket.id);
+  if (supportInfo.sockets.size === 0) siteSupport.delete(supportKey);
+  if (siteSupport.size === 0) onlineSupportBySite.delete(siteKey);
+}
+
+function getAvailableSupport(siteId) {
+  const siteSupport = onlineSupportBySite.get(String(siteId));
+  if (!siteSupport || siteSupport.size === 0) {
+    return { available: false, agentName: null };
+  }
+
+  const [supportInfo] = siteSupport.values();
+  return { available: true, agentName: supportInfo.name };
+}
+
 // ========== ROUTES ==========
 
 // Auth Login
@@ -148,11 +201,11 @@ app.post('/api/auth/login', async (req, res) => {
     if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
     
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, name: user.name, email: user.email, role: user.role, siteId: user.siteId },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, siteId: user.siteId } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -269,7 +322,11 @@ app.get('/api/sites/config/:apiKey', async (req, res) => {
   try {
     const site = await Site.findOne({ where: { apiKey: req.params.apiKey } });
     if (!site) return res.status(404).json({ error: 'Invalid API key' });
-    res.json({ siteId: site.id, settings: site });
+    res.json({
+      siteId: site.id,
+      settings: site,
+      supportAvailability: getAvailableSupport(site.id)
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -364,16 +421,27 @@ io.on('connection', (socket) => {
   console.log('🔌 New connection:', socket.id);
 
   // Support authentication
-  socket.on('support-auth', (token) => {
+  socket.on('support-auth', async (token) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded.siteId) {
-        socket.join(`site-${decoded.siteId}`);
-        console.log(`Support joined site-${decoded.siteId}`);
+      let supportUser = decoded;
+
+      if (!supportUser.siteId || !supportUser.name) {
+        const user = await User.findByPk(decoded.id, {
+          attributes: ['id', 'name', 'email', 'role', 'siteId']
+        });
+        if (user) supportUser = user.toJSON();
       }
-      socket.supportUser = decoded;
-      socket.join(`support-${decoded.id}`);
-      console.log(`Support ${decoded.email} connected`);
+
+      if (supportUser.siteId) {
+        socket.join(`site-${supportUser.siteId}`);
+        markSupportOnline(socket, supportUser);
+        console.log(`Support joined site-${supportUser.siteId}`);
+      }
+
+      socket.supportUser = supportUser;
+      socket.join(`support-${supportUser.id}`);
+      console.log(`Support ${supportUser.email} connected`);
     } catch (err) {
       console.error('Invalid support token');
     }
@@ -543,6 +611,7 @@ socket.on('visitor-message', async (data) => {
   });
 
   socket.on('disconnect', () => {
+    markSupportOffline(socket);
     console.log('🔌 Disconnected:', socket.id);
   });
 });
