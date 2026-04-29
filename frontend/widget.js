@@ -22,6 +22,7 @@
     
     // Track displayed messages by unique ID
     let displayedMessages = new Set();
+    let chatConnectPromise = null;
     
     function getVisitorId() {
         let visitorId = localStorage.getItem('chat_visitor_id');
@@ -75,13 +76,14 @@
         const windowDiv = document.getElementById('chat-window');
         const close = document.getElementById('chat-close');
         const messagesDiv = document.getElementById('chat-messages');
-        
-        let isConnected = false;
+        const input = document.getElementById('chat-input');
+        const send = document.getElementById('chat-send');
+
+        messagesDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7280;">Send a message to start the conversation.</div>';
         
         toggle.onclick = () => {
             if (windowDiv.style.display === 'none' || windowDiv.style.display === '') {
                 windowDiv.style.display = 'flex';
-                if (!isConnected) connectToChat(messagesDiv);
             } else {
                 windowDiv.style.display = 'none';
             }
@@ -90,34 +92,82 @@
         close.onclick = () => {
             windowDiv.style.display = 'none';
         };
+
+        send.onclick = () => sendVisitorMessage(messagesDiv, input, send);
+
+        input.onkeypress = (e) => {
+            if (e.key === 'Enter') send.onclick();
+        };
+    }
+
+    async function sendVisitorMessage(messagesDiv, input, send) {
+        const messageText = input.value.trim();
+        if (!messageText) return;
+
+        try {
+            input.disabled = true;
+            send.disabled = true;
+            await ensureChatConnected(messagesDiv);
+
+            CONFIG.socket.emit('visitor-message', {
+                threadId: CONFIG.threadId,
+                message: messageText,
+                visitorId: CONFIG.visitorId
+            });
+
+            input.value = '';
+        } catch (err) {
+            console.error('Send message error:', err);
+            messagesDiv.innerHTML = `<div style="text-align:center;color:red;padding:20px;">Error: ${err.message}</div>`;
+        } finally {
+            input.disabled = false;
+            send.disabled = false;
+            input.focus();
+        }
+    }
+
+    function ensureChatConnected(messagesDiv) {
+        if (CONFIG.socket && CONFIG.socket.connected && CONFIG.threadId) {
+            return Promise.resolve();
+        }
+
+        if (!chatConnectPromise) {
+            chatConnectPromise = connectToChat(messagesDiv).finally(() => {
+                chatConnectPromise = null;
+            });
+        }
+
+        return chatConnectPromise;
     }
     
     async function connectToChat(messagesDiv) {
-        try {
-            messagesDiv.innerHTML = '<div style="text-align:center;padding:20px;">Connecting...</div>';
-            
-            const response = await fetch(`${CONFIG.apiUrl}/api/threads/create`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    siteId: CONFIG.siteId, 
-                    visitorId: CONFIG.visitorId,
-                    visitorName: 'Guest'
-                })
-            });
-            
-            const data = await response.json();
-            CONFIG.threadId = data.threadId;
-            console.log('✅ Thread:', CONFIG.threadId);
-            
-            await loadSocketIO();
-            
+        messagesDiv.innerHTML = '<div style="text-align:center;padding:20px;">Connecting...</div>';
+        
+        const response = await fetch(`${CONFIG.apiUrl}/api/threads/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                siteId: CONFIG.siteId, 
+                visitorId: CONFIG.visitorId,
+                visitorName: 'Guest'
+            })
+        });
+
+        if (!response.ok) throw new Error('Could not start chat');
+        
+        const data = await response.json();
+        CONFIG.threadId = data.threadId;
+        console.log('✅ Thread:', CONFIG.threadId);
+        
+        await loadSocketIO();
+
+        return new Promise((resolve, reject) => {
             CONFIG.socket = io(CONFIG.apiUrl);
-            
+            let previousMessagesLoaded = false;
+
             CONFIG.socket.on('connect', () => {
                 console.log('✅ Socket connected');
                 CONFIG.socket.emit('join-thread', CONFIG.threadId, CONFIG.visitorId);
-                messagesDiv.innerHTML = '';
             });
             
             CONFIG.socket.on('previous-messages', (messages) => {
@@ -130,6 +180,8 @@
                         addMessageToUI(messagesDiv, msg);
                     }
                 });
+                previousMessagesLoaded = true;
+                resolve();
             });
             
             // Handle new messages with duplicate prevention
@@ -148,32 +200,13 @@
             CONFIG.socket.on('connect_error', (err) => {
                 console.error('Socket error:', err);
                 messagesDiv.innerHTML = '<div style="text-align:center;color:red;padding:20px;">Cannot connect to server.</div>';
+                reject(err);
             });
-            
-            const input = document.getElementById('chat-input');
-            const send = document.getElementById('chat-send');
-            
-            send.onclick = () => {
-                const messageText = input.value.trim();
-                if (!messageText || !CONFIG.socket) return;
-                
-                CONFIG.socket.emit('visitor-message', {
-                    threadId: CONFIG.threadId,
-                    message: messageText,
-                    visitorId: CONFIG.visitorId
-                });
-                
-                input.value = '';
-            };
-            
-            input.onkeypress = (e) => {
-                if (e.key === 'Enter') send.onclick();
-            };
-            
-        } catch (err) {
-            console.error('Connection error:', err);
-            messagesDiv.innerHTML = `<div style="text-align:center;color:red;padding:20px;">Error: ${err.message}</div>`;
-        }
+
+            setTimeout(() => {
+                if (!previousMessagesLoaded) resolve();
+            }, 3000);
+        });
     }
     
     function loadSocketIO() {
