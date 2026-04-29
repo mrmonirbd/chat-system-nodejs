@@ -558,6 +558,30 @@
     overflow: visible;
 }
 
+.admin-chart-body {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
+}
+
+.admin-chart-scale {
+    color: #8a9bb1;
+    display: flex;
+    flex-direction: column;
+    font-size: 10px;
+    font-weight: 700;
+    height: 124px;
+    justify-content: space-between;
+    padding: 2px 0 5px;
+    text-align: right;
+}
+
+.admin-chart-plot {
+    position: relative;
+    min-width: 0;
+}
+
 .admin-chart-total {
     display: block;
     color: #1f3556;
@@ -569,6 +593,12 @@
 .admin-wide-wave line {
     stroke: #eef2f7;
     stroke-width: 0.45;
+}
+
+.admin-wide-wave .hover-line {
+    stroke: #94a3b8;
+    stroke-dasharray: 2 2;
+    stroke-width: 0.35;
 }
 
 .admin-wide-wave path {
@@ -586,6 +616,53 @@
     stroke: #16c98d;
 }
 
+.admin-chart-tooltip {
+    background: #0f172a;
+    border-radius: 8px;
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.16);
+    color: #fff;
+    display: grid;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 800;
+    left: 0;
+    min-width: 112px;
+    padding: 8px 10px;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform: translate(-50%, calc(-100% - 8px));
+    z-index: 5;
+}
+
+.admin-chart-tooltip small {
+    color: #cbd5e1;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.admin-chart-tooltip span {
+    align-items: center;
+    display: inline-flex;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.admin-chart-tooltip i {
+    border-radius: 999px;
+    display: inline-block;
+    height: 7px;
+    width: 7px;
+}
+
+.admin-chart-tooltip i.blue {
+    background: #4f86ff;
+}
+
+.admin-chart-tooltip i.green {
+    background: #16c98d;
+}
+
 .admin-chart-labels {
     display: flex;
     justify-content: space-between;
@@ -593,6 +670,15 @@
     color: #475569;
     font-size: 10px;
     margin-top: 4px;
+    padding-left: 42px;
+}
+
+.admin-chart-labels span {
+    min-width: 0;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .admin-side-stack {

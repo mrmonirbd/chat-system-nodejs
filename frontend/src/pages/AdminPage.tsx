@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
+import { FormEvent, MouseEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 
 type AdminView = 'dashboard' | 'chat' | 'agentChat' | 'sites' | 'support' | 'apiKeys' | 'users';
@@ -32,6 +32,7 @@ type Analytics = {
     messages?: ChartSeries;
     customerMessages?: ChartSeries;
     agentMessages?: ChartSeries;
+    sitesDaily?: ChartSeries;
     sites?: ChartSeries;
     supportAgents?: ChartSeries;
   };
@@ -607,7 +608,9 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
               <MultiWaveChart
                 title="Total Site"
                 primary={analytics?.charts?.sites}
-                primaryLabel="Sites"
+                secondary={analytics?.charts?.sitesDaily}
+                primaryLabel="Total"
+                secondaryLabel="Daily"
                 total={analytics?.totals.totalSites || 0}
               />
             </div>
@@ -928,6 +931,7 @@ function GaugeCard({ title, value, note }: { title: string; value: number; note:
 }
 
 function MultiWaveChart({ title, primary, secondary, primaryLabel, secondaryLabel, total }: { title: string; primary?: ChartSeries; secondary?: ChartSeries; primaryLabel: string; secondaryLabel?: string; total?: string | number }) {
+  const [hoverPoint, setHoverPoint] = useState<{ index: number; x: number; y: number } | null>(null);
   const first = primary?.data?.length ? primary.data : [0];
   const second = secondary?.data?.length ? secondary.data : [0];
   const labels = primary?.labels?.length ? primary.labels : secondary?.labels || [];
@@ -935,6 +939,24 @@ function MultiWaveChart({ title, primary, secondary, primaryLabel, secondaryLabe
   const primaryPath = buildSeriesPath(first, max);
   const secondaryPath = buildSeriesPath(second, max);
   const tickLabels = labels.length > 12 ? labels.filter((_, index) => index % Math.ceil(labels.length / 12) === 0) : labels;
+  const pointCount = Math.max(first.length, second.length, labels.length, 1);
+  const scaleTicks = [max, max * 0.75, max * 0.5, max * 0.25, 0].map(value => Math.round(value));
+  const hoverLabel = hoverPoint && labels[hoverPoint.index] ? formatTinyDate(labels[hoverPoint.index]) : '';
+  const hoverPrimaryValue = hoverPoint ? first[hoverPoint.index] ?? 0 : 0;
+  const hoverSecondaryValue = hoverPoint ? second[hoverPoint.index] ?? 0 : 0;
+
+  function handleChartHover(event: MouseEvent<SVGSVGElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const index = Math.max(0, Math.min(pointCount - 1, Math.round(ratio * (pointCount - 1))));
+    const x = pointCount === 1 ? 0 : (index / (pointCount - 1)) * 100;
+    const primaryValue = first[index] ?? 0;
+    const secondaryValue = secondaryLabel ? second[index] ?? 0 : 0;
+    const topValue = Math.max(primaryValue, secondaryValue);
+    const y = 88 - (topValue / max) * 72;
+
+    setHoverPoint({ index, x, y });
+  }
 
   return (
     <div className="admin-wide-chart">
@@ -945,11 +967,32 @@ function MultiWaveChart({ title, primary, secondary, primaryLabel, secondaryLabe
           {secondaryLabel && <span><i className="green"></i>{secondaryLabel}</span>}
         </div>
       </div>
-      <svg className="admin-wide-wave" viewBox="0 0 100 100" preserveAspectRatio="none">
-        {[20, 40, 60, 80].map(y => <line key={y} x1="0" y1={y} x2="100" y2={y} />)}
-        <path d={primaryPath} className="blue-line" />
-        {secondaryLabel && <path d={secondaryPath} className="green-line" />}
-      </svg>
+      <div className="admin-chart-body">
+        <div className="admin-chart-scale">
+          {scaleTicks.map((tick, index) => <span key={`${tick}-${index}`}>{tick}</span>)}
+        </div>
+        <div className="admin-chart-plot">
+          <svg
+            className="admin-wide-wave"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            onMouseMove={handleChartHover}
+            onMouseLeave={() => setHoverPoint(null)}
+          >
+            {[20, 40, 60, 80].map(y => <line key={y} x1="0" y1={y} x2="100" y2={y} />)}
+            {hoverPoint && <line className="hover-line" x1={hoverPoint.x} y1="8" x2={hoverPoint.x} y2="92" />}
+            <path d={primaryPath} className="blue-line" />
+            {secondaryLabel && <path d={secondaryPath} className="green-line" />}
+          </svg>
+          {hoverPoint && (
+            <div className="admin-chart-tooltip" style={{ left: `${hoverPoint.x}%`, top: `${hoverPoint.y}%` }}>
+              {hoverLabel && <small>{hoverLabel}</small>}
+              <span><i className="blue"></i>{primaryLabel}: {hoverPrimaryValue}</span>
+              {secondaryLabel && <span><i className="green"></i>{secondaryLabel}: {hoverSecondaryValue}</span>}
+            </div>
+          )}
+        </div>
+      </div>
       {total !== undefined && <strong className="admin-chart-total">{total}</strong>}
       <div className="admin-chart-labels">
         {tickLabels.slice(0, 12).map(label => <span key={label}>{formatTinyDate(label)}</span>)}

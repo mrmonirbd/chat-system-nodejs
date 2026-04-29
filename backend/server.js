@@ -1023,6 +1023,7 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
         messages: buildDailySeries(days, messageRows),
         customerMessages: buildDailySeries(days, customerMessageRows),
         agentMessages: buildDailySeries(days, agentMessageRows),
+        sitesDaily: buildDailySeries(days, siteRows),
         sites: buildCumulativeDailySeries(days, siteRows, siteBaseline),
         supportAgents: buildCumulativeDailySeries(days, supportRows, supportBaseline)
       }
