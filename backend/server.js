@@ -117,14 +117,15 @@ async function findValidPasswordResetToken(token, email) {
 async function sendForgotPasswordEmail(user, resetUrl) {
   const transporter = createMailTransport();
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-  const safeName = escapeHtml(user.name);
+  const displayName = user.name || String(user.email).split('@')[0];
+  const safeName = escapeHtml(displayName);
   const safeResetUrl = escapeHtml(resetUrl);
 
   await transporter.sendMail({
     from,
     to: user.email,
     subject: 'Reset your Chat System password',
-    text: `Hi ${user.name},\n\nWe received a request to reset your Chat System password.\n\nReset your password here:\n${resetUrl}\n\nThis link will expire in 1 hour. If you did not request this, you can ignore this email.`,
+    text: `Hi ${displayName},\n\nWe received a request to reset your Chat System password.\n\nReset your password here:\n${resetUrl}\n\nThis link will expire in 1 hour. If you did not request this, you can ignore this email.`,
     html: `
       <div style="margin:0; padding:0; background:#f3f7f5;">
         <div style="max-width:560px; margin:0 auto; padding:32px 18px; font-family:Arial, sans-serif; color:#1f2937;">
