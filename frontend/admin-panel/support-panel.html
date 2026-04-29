@@ -961,6 +961,7 @@ function initSocket() {
 
     socket.on('admin-agent-message', (msg) => {
         const adminId = Number(msg.fromAdminId);
+        const relatedChatOpen = isAgentChatActive() && currentAdminChatId === adminId;
         if (!adminChatSessions[adminId]) adminChatSessions[adminId] = [];
         adminChatSessions[adminId].push({
             id: msg.id,
@@ -992,8 +993,10 @@ function initSocket() {
             markAdminChatRead(adminId);
         }
         renderAdminAgentList();
-        showInternalChatToast(`You got message from ${msg.fromAdminName || 'Team member'}`, adminId);
-        playNotificationSound();
+        if (!relatedChatOpen) {
+            showInternalChatToast(`You got message from ${msg.fromAdminName || 'Team member'}`, adminId);
+            playNotificationSound();
+        }
     });
 }
             

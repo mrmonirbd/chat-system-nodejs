@@ -223,6 +223,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
       socket.on('new-thread-message', () => loadAll());
       socket.on('agent-admin-message', payload => {
         const data = payload as { id: number; fromSupportId: number; fromSupportName: string; fromSupportEmail?: string; siteId?: number | null; message: string; unreadCount?: number; createdAt: string };
+        const relatedChatOpen = activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat';
         setAgentChats(prev => {
           const existing = prev.find(chat => chat.agent.id === data.fromSupportId);
           if (!existing) {
@@ -237,7 +238,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
               },
               draft: '',
               open: true,
-            unread: activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat' ? 0 : Number(data.unreadCount || 1),
+              unread: relatedChatOpen ? 0 : Number(data.unreadCount || 1),
               messages: [{ id: data.id, sender: 'agent', message: data.message, createdAt: data.createdAt }]
             }];
           }
@@ -245,18 +246,20 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
           return prev.map(chat => chat.agent.id === data.fromSupportId ? {
             ...chat,
             open: true,
-            unread: activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat' ? 0 : Number(data.unreadCount || chat.unread + 1),
+            unread: relatedChatOpen ? 0 : Number(data.unreadCount || chat.unread + 1),
             messages: [...chat.messages, { id: data.id, sender: 'agent', message: data.message, createdAt: data.createdAt }]
           } : chat);
         });
         setAgentUnreadCounts(prev => ({
           ...prev,
-          [data.fromSupportId]: activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat' ? 0 : Number(data.unreadCount || (prev[data.fromSupportId] || 0) + 1)
+          [data.fromSupportId]: relatedChatOpen ? 0 : Number(data.unreadCount || (prev[data.fromSupportId] || 0) + 1)
         }));
-        if (activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat') {
+        if (relatedChatOpen) {
           fetchJson(`${API_URL}/internal-chat/${data.fromSupportId}/read`, { method: 'POST' }).catch(() => {});
+        } else {
+          showNotice(`You got message from ${data.fromSupportName || 'Support Agent'}`, data.fromSupportId);
+          playNotificationSound();
         }
-        showNotice(`You got message from ${data.fromSupportName || 'Support Agent'}`, data.fromSupportId);
       });
     };
 
@@ -445,6 +448,15 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
     if (noticeCloseTimerRef.current) window.clearTimeout(noticeCloseTimerRef.current);
     noticeTimerRef.current = window.setTimeout(() => closeNotice(), 11000);
+  }
+
+  function playNotificationSound() {
+    try {
+      const audio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=');
+      audio.play().catch(() => {});
+    } catch {
+      // Browser may block autoplay until the first user interaction.
+    }
   }
 
   function closeNotice(event?: React.MouseEvent) {
