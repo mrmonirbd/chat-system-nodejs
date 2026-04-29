@@ -71,6 +71,19 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        .quick-reply-settings {
+            position: absolute;
+            right: 0;
+            bottom: 100%;
+            margin-bottom: 10px;
+            width: 320px;
+            max-width: calc(100vw - 48px);
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
+            z-index: 20;
+        }
     </style>
 </head>
 <body>
@@ -121,14 +134,31 @@
                     <div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-4xl mb-2"></i><p>No conversation selected</p></div>
                 </div>
                 <div class="p-4 border-t border-gray-200 bg-gray-50">
-                    <div class="flex gap-2 overflow-x-auto pb-3 items-center" id="quickReplies">
-                        <button type="button" class="quick-reply-chip" data-reply="Hello! How can I help you today?" onclick="insertQuickReply(this.dataset.reply)" disabled>Hello</button>
-                        <button type="button" class="quick-reply-chip" data-reply="Thanks for reaching out. I am checking this for you." onclick="insertQuickReply(this.dataset.reply)" disabled>Checking</button>
-                        <button type="button" class="quick-reply-chip" data-reply="Could you please share a little more detail?" onclick="insertQuickReply(this.dataset.reply)" disabled>More detail</button>
-                        <button type="button" class="quick-reply-chip" data-reply="Please wait a moment while I look into this." onclick="insertQuickReply(this.dataset.reply)" disabled>Please wait</button>
-                        <button type="button" class="quick-reply-chip" data-reply="This should be resolved now. Please check and let me know." onclick="insertQuickReply(this.dataset.reply)" disabled>Resolved</button>
-                        <span id="customQuickReplies" class="flex gap-2"></span>
-                        <button type="button" class="quick-reply-chip" onclick="addCustomQuickReply()"><i class="fas fa-plus mr-1"></i>Add</button>
+                    <div class="relative">
+                        <div class="flex gap-2 overflow-x-auto pb-3 items-center" id="quickReplies">
+                            <button type="button" class="quick-reply-chip" data-reply="Hello! How can I help you today?" onclick="insertQuickReply(this.dataset.reply)" disabled>Hello</button>
+                            <button type="button" class="quick-reply-chip" data-reply="Thanks for reaching out. I am checking this for you." onclick="insertQuickReply(this.dataset.reply)" disabled>Checking</button>
+                            <button type="button" class="quick-reply-chip" data-reply="Could you please share a little more detail?" onclick="insertQuickReply(this.dataset.reply)" disabled>More detail</button>
+                            <button type="button" class="quick-reply-chip" data-reply="Please wait a moment while I look into this." onclick="insertQuickReply(this.dataset.reply)" disabled>Please wait</button>
+                            <button type="button" class="quick-reply-chip" data-reply="This should be resolved now. Please check and let me know." onclick="insertQuickReply(this.dataset.reply)" disabled>Resolved</button>
+                            <span id="customQuickReplies" class="flex gap-2"></span>
+                            <button type="button" class="quick-reply-chip" onclick="toggleQuickReplySettings()" title="Manage quick replies"><i class="fas fa-cog"></i></button>
+                        </div>
+                        <div id="quickReplySettings" class="quick-reply-settings hidden p-3">
+                            <div class="flex items-center justify-between gap-3 mb-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-gray-800">Custom quick replies</p>
+                                    <p class="text-xs text-gray-500">Add or remove your saved replies</p>
+                                </div>
+                                <button type="button" class="text-gray-400 hover:text-gray-700" onclick="toggleQuickReplySettings(false)">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <button type="button" class="w-full bg-teal-50 text-teal-700 border border-teal-200 rounded-lg px-3 py-2 text-sm font-semibold hover:bg-teal-100" onclick="addCustomQuickReply()">
+                                <i class="fas fa-plus mr-1"></i>Add custom text
+                            </button>
+                            <div id="customQuickReplyManager" class="mt-3 space-y-2 max-h-48 overflow-y-auto"></div>
+                        </div>
                     </div>
                     <div class="flex gap-3">
                         <input type="text" id="messageInput" placeholder="Type your message..." class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition" disabled>
@@ -452,6 +482,7 @@ function initSocket() {
 
                 customQuickReplyItems = await res.json();
                 renderCustomQuickReplies();
+                renderQuickReplySettings();
             } catch (err) {
                 console.error('Load custom quick replies error:', err);
             }
@@ -462,13 +493,39 @@ function initSocket() {
             if (!customQuickRepliesEl) return;
 
             customQuickRepliesEl.innerHTML = customQuickReplyItems.map((reply) => `
-                <span class="inline-flex items-center gap-1">
-                    <button type="button" class="quick-reply-chip custom-quick-reply" data-reply="${escapeHtml(reply.text)}" onclick="insertQuickReply(this.dataset.reply)" ${currentThreadId ? '' : 'disabled'}>${escapeHtml(reply.text.substring(0, 24))}${reply.text.length > 24 ? '...' : ''}</button>
-                    <button type="button" class="text-gray-400 hover:text-red-500 text-xs px-1" onclick="deleteCustomQuickReply(${reply.id})" title="Delete quick reply">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </span>
+                <button type="button" class="quick-reply-chip custom-quick-reply" data-reply="${escapeHtml(reply.text)}" onclick="insertQuickReply(this.dataset.reply)" ${currentThreadId ? '' : 'disabled'}>${escapeHtml(reply.text.substring(0, 24))}${reply.text.length > 24 ? '...' : ''}</button>
             `).join('');
+        }
+
+        function renderQuickReplySettings() {
+            const manager = document.getElementById('customQuickReplyManager');
+            if (!manager) return;
+
+            if (customQuickReplyItems.length === 0) {
+                manager.innerHTML = '<p class="text-xs text-gray-500 text-center py-3">No custom replies yet.</p>';
+                return;
+            }
+
+            manager.innerHTML = customQuickReplyItems.map((reply) => `
+                <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2">
+                    <p class="text-sm text-gray-700 truncate" title="${escapeHtml(reply.text)}">${escapeHtml(reply.text)}</p>
+                    <button type="button" class="text-gray-400 hover:text-red-500" onclick="deleteCustomQuickReply(${reply.id})" title="Delete quick reply">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function toggleQuickReplySettings(forceOpen) {
+            const settings = document.getElementById('quickReplySettings');
+            if (!settings) return;
+
+            const shouldOpen = typeof forceOpen === 'boolean'
+                ? forceOpen
+                : settings.classList.contains('hidden');
+
+            settings.classList.toggle('hidden', !shouldOpen);
+            if (shouldOpen) renderQuickReplySettings();
         }
 
         async function addCustomQuickReply() {
@@ -491,6 +548,7 @@ function initSocket() {
                 const reply = await res.json();
                 customQuickReplyItems.push(reply);
                 renderCustomQuickReplies();
+                renderQuickReplySettings();
             } catch (err) {
                 console.error('Add custom quick reply error:', err);
                 alert('Failed to save quick reply');
@@ -508,6 +566,7 @@ function initSocket() {
 
                 customQuickReplyItems = customQuickReplyItems.filter(reply => reply.id !== replyId);
                 renderCustomQuickReplies();
+                renderQuickReplySettings();
             } catch (err) {
                 console.error('Delete custom quick reply error:', err);
                 alert('Failed to delete quick reply');
@@ -515,10 +574,8 @@ function initSocket() {
         }
 
         function setQuickRepliesDisabled(isDisabled) {
-            document.querySelectorAll('#quickReplies button').forEach(button => {
-                if (!button.matches('[onclick^="addCustomQuickReply"], [onclick^="deleteCustomQuickReply"]')) {
-                    button.disabled = isDisabled;
-                }
+            document.querySelectorAll('#quickReplies button[data-reply]').forEach(button => {
+                button.disabled = isDisabled;
             });
         }
         
