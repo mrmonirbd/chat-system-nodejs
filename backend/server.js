@@ -157,6 +157,18 @@ function getConnectedSiteCount() {
   return count;
 }
 
+function getConnectedThreadCount() {
+  let count = 0;
+  for (const [roomName, sockets] of io.sockets.adapter.rooms) {
+    if (roomName.startsWith('thread-') && sockets.size > 0) count += 1;
+  }
+  return count;
+}
+
+function getActiveVisitorChatCount() {
+  return openChatBoxes.size;
+}
+
 function getCpuUsagePercent() {
   const cpuCount = Math.max(os.cpus().length, 1);
   return Math.min(100, Math.round((os.loadavg()[0] / cpuCount) * 100));
@@ -336,6 +348,7 @@ const authMiddleware = (req, res, next) => {
 };
 
 const onlineSupportBySite = new Map();
+const openChatBoxes = new Map();
 const SUPPORT_OFFLINE_GRACE_MS = 60000;
 
 function markSupportOnline(socket, user) {
@@ -734,10 +747,9 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
     const dateExpr = sequelize.fn('DATE', sequelize.col('createdAt'));
     const countExpr = sequelize.fn('COUNT', sequelize.col('id'));
 
-    const [totalSites, supportAgents, activeChats, totalMessages, siteBaseline, supportBaseline, messageRows, siteRows, supportRows] = await Promise.all([
+    const [totalSites, supportAgents, totalMessages, siteBaseline, supportBaseline, messageRows, siteRows, supportRows] = await Promise.all([
       Site.count(),
       User.count({ where: { role: 'support' } }),
-      Thread.count({ where: { status: { [Op.in]: ['open', 'pending'] } } }),
       Message.count(),
       Site.count({ where: { createdAt: { [Op.lt]: since } } }),
       User.count({ where: { role: 'support', createdAt: { [Op.lt]: since } } }),
@@ -773,9 +785,10 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
       totals: {
         cpuUsage: getCpuUsagePercent(),
         connectedSites: getConnectedSiteCount(),
+        connectedThreads: getConnectedThreadCount(),
         totalSites,
         supportAgents,
-        activeChats,
+        activeChats: getActiveVisitorChatCount(),
         totalMessages
       },
       charts: {
@@ -1122,13 +1135,47 @@ io.on('connection', (socket) => {
     console.log(`Visitor joined site availability room: ${siteId}`);
   });
 
+  socket.on('chat-box-open', (data = {}) => {
+    const siteId = data.siteId ? String(data.siteId) : null;
+    const visitorId = data.visitorId ? String(data.visitorId) : socket.id;
+    if (!siteId) return;
+
+    const chatBoxKey = `${siteId}:${visitorId}`;
+    openChatBoxes.set(chatBoxKey, socket.id);
+    socket.openChatBoxKey = chatBoxKey;
+
+    io.emit('active-chat-count', { count: getActiveVisitorChatCount() });
+  });
+
+  socket.on('chat-box-close', () => {
+    if (socket.openChatBoxKey) {
+      openChatBoxes.delete(socket.openChatBoxKey);
+      socket.openChatBoxKey = null;
+      io.emit('active-chat-count', { count: getActiveVisitorChatCount() });
+    }
+  });
+
   // Visitor joins thread
   socket.on('join-thread', async (threadId, visitorId) => {
     try {
       const threadIdNum = parseInt(threadId);
+
+      if (socket.supportUser && socket.currentSupportThreadId && socket.currentSupportThreadId !== threadIdNum) {
+        socket.leave(`thread-${socket.currentSupportThreadId}`);
+      }
+
+      if (socket.supportUser) {
+        socket.currentSupportThreadId = threadIdNum;
+      } else {
+        socket.visitorThreadId = threadIdNum;
+      }
+
       socket.threadId = threadIdNum;
       socket.join(`thread-${threadIdNum}`);
-      console.log(`User joined thread: ${threadIdNum}`);
+
+      console.log(`${socket.supportUser ? 'Support' : 'User'} joined thread: ${threadIdNum}`);
+
+      if (socket.supportUser) return;
       
       const messages = await Message.findAll({ 
         where: { threadId: threadIdNum }, 
@@ -1279,6 +1326,10 @@ socket.on('visitor-message', async (data) => {
 
   socket.on('disconnect', () => {
     markSupportOffline(socket);
+    if (socket.openChatBoxKey) {
+      openChatBoxes.delete(socket.openChatBoxKey);
+      io.emit('active-chat-count', { count: getActiveVisitorChatCount() });
+    }
     console.log('🔌 Disconnected:', socket.id);
   });
 });

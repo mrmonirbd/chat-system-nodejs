@@ -171,7 +171,7 @@
                     <p class="text-3xl font-bold text-gray-800 mt-2" id="totalAgents">0</p>
                 </div>
                 <div class="bg-yellow-50 rounded-xl p-4">
-                    <p class="text-yellow-600 text-xs font-bold uppercase">Active Chats</p>
+                    <p class="text-yellow-600 text-xs font-bold uppercase">Active Chat</p>
                     <p class="text-3xl font-bold text-gray-800 mt-2" id="activeChats">0</p>
                 </div>
                 <div class="bg-purple-50 rounded-xl p-4">
@@ -418,7 +418,6 @@
             
             setInterval(() => {
                 loadAnalytics();
-                loadSites();
             }, 30000);
         }
     } catch (err) {
@@ -447,7 +446,10 @@
         if (!ctx || typeof Chart === 'undefined') return;
 
         if (analyticsCharts[chartId]) {
-            analyticsCharts[chartId].destroy();
+            analyticsCharts[chartId].data.labels = labels;
+            analyticsCharts[chartId].data.datasets[0].data = data;
+            analyticsCharts[chartId].update('none');
+            return;
         }
 
         analyticsCharts[chartId] = new Chart(ctx, {
@@ -471,6 +473,7 @@
                 plugins: {
                     legend: { display: false }
                 },
+                animation: false,
                 scales: {
                     x: {
                         ticks: {

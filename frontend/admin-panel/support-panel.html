@@ -532,14 +532,6 @@ function initSocket() {
             return;
         }
         
-        // AUTO-JOIN all threads on load
-        if (socket && socket.connected) {
-            for (let thread of threads) {
-                socket.emit('join-thread', thread.id, currentAgent?.id);
-                console.log('✅ Auto-joined thread:', thread.id);
-            }
-        }
-        
         // Sort by last message time (newest first)
         threads.sort((a, b) => new Date(b.lastMsgTime) - new Date(a.lastMsgTime));
         
