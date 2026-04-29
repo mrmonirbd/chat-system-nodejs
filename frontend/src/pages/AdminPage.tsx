@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useState } from 'react';
 
 type AdminView = 'dashboard' | 'chat' | 'sites' | 'support' | 'apiKeys' | 'users';
 type AnalyticsRange = '1d' | '7d' | '30d' | '6m' | '1y';
@@ -97,7 +97,9 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [adminDraft, setAdminDraft] = useState('');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   function authHeaders() {
     return { Authorization: `Bearer ${token}` };
@@ -220,8 +222,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     event.preventDefault();
     if (!selectedThread) return;
 
-    const formData = new FormData(event.currentTarget);
-    const message = String(formData.get('message') || '').trim();
+    const message = adminDraft.trim();
     if (!message) return;
 
     try {
@@ -231,7 +232,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
         body: JSON.stringify({ message })
       });
       setMessages(prev => [...prev, newMessage]);
-      event.currentTarget.reset();
+      setAdminDraft('');
       loadAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
@@ -278,6 +279,18 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
 
   const supportUsers = users.filter(user => user.role === 'support');
   const onlineTotal = onlineAgents.length + onlineChats.length;
+  const quickReplies = [
+    'Hello! How can I help you today?',
+    'Thanks for reaching out. I am checking this for you.',
+    'Could you please share a little more detail?',
+    'Please wait a moment while I look into this.',
+    'This should be resolved now. Please check and let me know.'
+  ];
+
+  function showNotice(message: string) {
+    setNotice(message);
+    window.setTimeout(() => setNotice(''), 2200);
+  }
 
   return (
     <div className="admin-shell">
@@ -295,6 +308,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
       </aside>
 
       <main className="admin-main">
+        {notice && <div className="admin-toast">{notice}</div>}
         <div className="admin-topbar">
           <div>
             <h1>Admin Panel</h1>
@@ -406,30 +420,76 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
 
         {view === 'chat' && (
           <div className="admin-chat-grid">
-            <div className="admin-panel-card">
-              <h2>Client Chats</h2>
-              {threads.map(thread => (
-                <button className="thread-row" key={thread.id} onClick={() => openThread(thread)}>
-                  <strong>{thread.visitorName || 'Guest'}</strong>
-                  <span>{thread.Site?.name || 'Unknown site'} · {thread.status}</span>
-                </button>
-              ))}
+            <div className="admin-chat-list-card">
+              <div className="admin-chat-panel-head">
+                <div>
+                  <h2><span className="chat-head-icon">☰</span>Active Conversations</h2>
+                  <p>{threads.length} recent threads</p>
+                </div>
+              </div>
+              <div className="admin-thread-list">
+                {threads.length === 0 && <div className="admin-chat-empty">No conversations yet</div>}
+                {threads.map(thread => (
+                  <button className={`admin-thread-item ${selectedThread?.id === thread.id ? 'active' : ''}`} key={thread.id} onClick={() => openThread(thread)}>
+                    <div className="admin-thread-title">
+                      <span className="thread-avatar">●</span>
+                      <strong>{thread.visitorName || 'Guest'}</strong>
+                      <span className="thread-status">{thread.status}</span>
+                    </div>
+                    <p>{formatShortDate(thread.lastMessageAt)} · {thread.Site?.name || 'Unknown site'}</p>
+                    <small>{thread.AssignedSupport?.name ? `Assigned to ${thread.AssignedSupport.name}` : 'Unassigned'}</small>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="admin-panel-card chat-box">
-              <h2>{selectedThread ? `Chat with ${selectedThread.visitorName || 'Guest'}` : 'Select a chat'}</h2>
+
+            <div className="admin-chat-room-card">
+              <div className="admin-chat-panel-head chat-room-head">
+                <div>
+                  <h2><span className="chat-head-icon">●</span>{selectedThread ? `Chatting with ${selectedThread.visitorName || 'Guest'}` : 'Select a conversation'}</h2>
+                  <p>{selectedThread ? `${selectedThread.Site?.name || 'Unknown site'} · Active conversation` : 'Please select chat from head to start the chat'}</p>
+                </div>
+              </div>
               <div className="admin-messages">
-                {messages.map(message => (
-                  <div className={`admin-message ${message.sender === 'support' ? 'sent' : 'received'}`} key={message.id}>
-                    {message.message}
+                {!selectedThread && (
+                  <div className="admin-chat-placeholder">
+                    <span>□</span>
+                    <p>Please select chat from head to start the chat</p>
+                  </div>
+                )}
+                {selectedThread && messages.length === 0 && (
+                  <div className="admin-chat-placeholder">
+                    <span>○</span>
+                    <p>No messages yet</p>
+                  </div>
+                )}
+                {selectedThread && messages.map(message => (
+                  <div className={`admin-message-row ${message.sender === 'support' ? 'sent' : 'received'}`} key={message.id}>
+                    <div className="admin-message">
+                      <div>{message.message}</div>
+                      <time>{formatMessageTime(message.createdAt)}</time>
+                    </div>
                   </div>
                 ))}
               </div>
-              {selectedThread && (
-                <form className="admin-send" onSubmit={sendAdminMessage}>
-                  <input name="message" placeholder="Write message as admin..." />
-                  <button>Send</button>
-                </form>
-              )}
+              <form className="admin-chat-composer" onSubmit={sendAdminMessage}>
+                <div className="admin-quick-replies">
+                  {quickReplies.map(reply => (
+                    <button type="button" key={reply} disabled={!selectedThread} onClick={() => setAdminDraft(reply)}>
+                      {reply.split(' ').slice(0, 2).join(' ')}
+                    </button>
+                  ))}
+                </div>
+                <div className="admin-send">
+                  <input
+                    value={adminDraft}
+                    onChange={event => setAdminDraft(event.target.value)}
+                    placeholder="Type your message..."
+                    disabled={!selectedThread}
+                  />
+                  <button disabled={!selectedThread || !adminDraft.trim()}>Send</button>
+                </div>
+              </form>
             </div>
           </div>
         )}
@@ -444,11 +504,11 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
                 <button>Create Site</button>
               </form>
             </div>
-            <DataTable headers={['Site', 'Domain', 'API Key']} rows={sites.map(site => [site.name, site.domain, site.apiKey])} />
+            <DataTable headers={['Site', 'Domain', 'API Key', 'Embed Tag']} rows={sites.map(site => [site.name, site.domain, site.apiKey, <EmbedCode apiKey={site.apiKey} onCopied={() => showNotice('Embed code copied')} />])} />
           </div>
         )}
 
-        {view === 'apiKeys' && <DataTable headers={['Site', 'Domain', 'API Key']} rows={sites.map(site => [site.name, site.domain, site.apiKey])} />}
+        {view === 'apiKeys' && <DataTable headers={['Site', 'Domain', 'API Key', 'Embed Tag']} rows={sites.map(site => [site.name, site.domain, site.apiKey, <EmbedCode apiKey={site.apiKey} onCopied={() => showNotice('Embed code copied')} />])} />}
 
         {view === 'support' && (
           <div className="admin-two-col">
@@ -663,7 +723,40 @@ function formatTinyDate(dateValue: string) {
   return date.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
 }
 
-function DataTable({ headers, rows }: { headers: string[]; rows: Array<Array<string | number>> }) {
+function formatMessageTime(dateValue: string) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function EmbedCode({ apiKey, onCopied }: { apiKey: string; onCopied: () => void }) {
+  const code = `<script src="${window.location.origin}/widget.js" data-chat-widget data-api-key="${apiKey}"></script>`;
+  const [copied, setCopied] = useState(false);
+
+  async function copyEmbedCode() {
+    await navigator.clipboard?.writeText(code);
+    setCopied(true);
+    onCopied();
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  return (
+    <div
+      className={`embed-code-cell ${copied ? 'copied' : ''}`}
+      data-tooltip={copied ? 'Copied' : 'Click to copy'}
+      onClick={copyEmbedCode}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') copyEmbedCode();
+      }}
+      role="button"
+      tabIndex={0}
+    >
+      <code>{code}</code>
+    </div>
+  );
+}
+
+function DataTable({ headers, rows }: { headers: string[]; rows: Array<Array<ReactNode>> }) {
   return (
     <div className="admin-panel-card table-card">
       <table>
