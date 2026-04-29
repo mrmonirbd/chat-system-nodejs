@@ -205,8 +205,8 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </div>
-                            <div class="flex gap-2">
-                                <input type="text" id="customQuickReplyInput" placeholder="Write custom quick text..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                            <div class="flex gap-2 items-start">
+                                <textarea id="customQuickReplyInput" rows="2" placeholder="Write custom quick text..." class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none"></textarea>
                                 <button type="button" class="bg-teal-500 text-white rounded-lg px-3 py-2 text-sm font-semibold hover:bg-teal-600" onclick="addCustomQuickReply()">
                                     <i class="fas fa-plus"></i>
                                 </button>
@@ -669,8 +669,8 @@ function initSocket() {
             if (!reply || !row) return;
 
             row.innerHTML = `
-                <div class="flex gap-2">
-                    <input type="text" id="edit-quick-reply-${replyId}" value="${escapeHtml(reply.text)}" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                <div class="flex gap-2 items-start">
+                    <textarea id="edit-quick-reply-${replyId}" rows="2" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 resize-none">${escapeHtml(reply.text)}</textarea>
                     <button type="button" class="bg-teal-500 text-white rounded-lg px-3 py-2 text-sm hover:bg-teal-600" onclick="saveEditedQuickReply(${replyId})">
                         <i class="fas fa-check"></i>
                     </button>
