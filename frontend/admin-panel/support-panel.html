@@ -137,6 +137,229 @@
             padding: 8px;
             margin-top: 8px;
         }
+        .agent-chat-nav-badge {
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #ef4444;
+            color: white;
+            font-size: 11px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            margin-left: auto;
+        }
+        .support-view.hidden {
+            display: none;
+        }
+        .admin-chat-page {
+            width: 100%;
+            height: 85vh;
+            display: grid;
+            grid-template-columns: 340px minmax(0, 1fr);
+            gap: 20px;
+        }
+        .admin-agent-list,
+        .admin-agent-room {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 16px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .admin-agent-list-head {
+            padding: 16px;
+            border-bottom: 1px solid #eef2f7;
+        }
+        .admin-agent-list-head h2 {
+            color: #1f2937;
+            font-size: 16px;
+            font-weight: 800;
+        }
+        .admin-agent-list-head p {
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .admin-agent-list-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        .admin-agent-row {
+            width: 100%;
+            border: 1px solid transparent;
+            background: transparent;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: left;
+            cursor: pointer;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+        .admin-agent-row:hover,
+        .admin-agent-row.active {
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+        .admin-agent-row strong {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #1f2937;
+            font-size: 14px;
+        }
+        .admin-agent-row small {
+            display: block;
+            color: #64748b;
+            margin-top: 4px;
+            font-size: 12px;
+        }
+        .admin-agent-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+        .admin-agent-role,
+        .admin-agent-online {
+            border-radius: 999px;
+            padding: 3px 8px;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .admin-agent-role {
+            background: #eef2ff;
+            color: #3730a3;
+        }
+        .admin-agent-online {
+            background: #dcfce7;
+            color: #15803d;
+        }
+        .admin-agent-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 3px rgba(34, 197, 94, .14);
+            flex: 0 0 auto;
+        }
+        .admin-agent-empty {
+            color: #94a3b8;
+            text-align: center;
+            padding: 28px 10px;
+            font-size: 14px;
+        }
+        .agent-chat-unread {
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #ef4444;
+            color: white;
+            font-size: 11px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+        }
+        .admin-chat-head {
+            background: #2563eb;
+            color: white;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .admin-chat-head strong,
+        .admin-chat-head span {
+            display: block;
+        }
+        .admin-chat-head span {
+            font-size: 12px;
+            opacity: .9;
+            margin-top: 4px;
+        }
+        .admin-chat-close {
+            border: 0;
+            background: transparent;
+            color: white;
+            font-size: 26px;
+            cursor: pointer;
+        }
+        .admin-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #f9fafb;
+        }
+        .admin-chat-row {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        .admin-chat-row.sent {
+            justify-content: flex-end;
+        }
+        .admin-chat-bubble {
+            max-width: 78%;
+            padding: 10px 12px;
+            border-radius: 18px;
+            background: #f3f4f6;
+            color: #1f2937;
+            font-size: 14px;
+            border-bottom-left-radius: 4px;
+        }
+        .admin-chat-row.sent .admin-chat-bubble {
+            background: #2563eb;
+            color: white;
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 4px;
+        }
+        .admin-chat-bubble time {
+            display: block;
+            font-size: 10px;
+            opacity: .7;
+            margin-top: 4px;
+        }
+        .admin-chat-composer {
+            display: flex;
+            gap: 10px;
+            padding: 16px;
+            border-top: 1px solid #e5e7eb;
+        }
+        .admin-chat-composer input {
+            flex: 1;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 10px;
+            outline: 0;
+        }
+        .admin-chat-composer button {
+            border: 0;
+            background: #2563eb;
+            color: white;
+            border-radius: 8px;
+            padding: 10px 16px;
+            cursor: pointer;
+        }
+        @media (max-width: 960px) {
+            .admin-chat-page {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .admin-agent-list,
+            .admin-agent-room {
+                height: 420px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -150,7 +373,8 @@
             </div>
             <nav class="py-6 px-4">
                 <p class="sidebar-title">Workspace</p>
-                <a href="/support-panel" class="sidebar-link active"><i class="fas fa-comment-dots w-5"></i><span>Chat</span></a>
+                <a href="/support-panel" id="navCustomerChat" class="sidebar-link active"><i class="fas fa-comment-dots w-5"></i><span>Chat</span></a>
+                <a href="/support-panel/agent-chat" id="navAgentChat" class="sidebar-link"><i class="fas fa-user-shield w-5"></i><span>Agent Chat</span><span class="agent-chat-nav-badge" id="adminChatBadge">0</span></a>
                 <button onclick="showProfile()" class="sidebar-link w-full text-left"><i class="fas fa-id-card w-5"></i><span>Profile</span></button>
                 <button onclick="showChangePassword()" class="sidebar-link w-full text-left"><i class="fas fa-key w-5"></i><span>Change Password</span></button>
                 <p class="sidebar-title">Navigation</p>
@@ -159,6 +383,7 @@
             </nav>
         </aside>
         <main class="flex-1 overflow-y-auto lg:ml-72">
+    <section id="customerChatPage" class="support-view">
     <div class="w-full px-6 py-6">
         <div class="fade-in">
             <div class="flex justify-between items-center mb-6 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -246,6 +471,52 @@
             </div>
         </div>
     </div>
+    </section>
+
+    <section id="agentChatPage" class="support-view hidden w-full px-6 py-6">
+        <div class="fade-in">
+            <div class="flex justify-between items-center mb-6 bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-user-shield mr-2 text-blue-600"></i>Agent Chat</h1>
+                    <p class="text-gray-500 text-sm">Chat directly with admin</p>
+                </div>
+                <div class="text-gray-700 text-right">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-user-circle text-2xl text-blue-600"></i>
+                        <span id="agentChatName" class="font-semibold">Agent</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Internal support channel</p>
+                </div>
+            </div>
+        </div>
+        <div class="admin-chat-page">
+            <div class="admin-agent-list">
+                <div class="admin-agent-list-head">
+                    <h2><i class="fas fa-user-shield mr-2 text-blue-600"></i>Admins & Agents</h2>
+                    <p id="adminAgentCount">0 team members</p>
+                </div>
+                <div class="admin-agent-list-body" id="adminAgentList">
+                    <div class="admin-agent-empty"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p>Loading admins...</p></div>
+                </div>
+            </div>
+            <div class="admin-agent-room">
+                <div class="admin-chat-head">
+                    <div>
+                        <strong id="adminChatTitle">Select admin</strong>
+                        <span id="adminChatSubtitle">Choose an admin from left to start chat</span>
+                    </div>
+                    <span class="agent-chat-unread" id="adminChatPageBadge">0</span>
+                </div>
+                <div class="admin-chat-messages" id="adminChatMessages">
+                    <div class="text-center text-gray-400 py-8">Select admin from left to start chat</div>
+                </div>
+                <div class="admin-chat-composer">
+                    <input type="text" id="adminChatInput" placeholder="Type your message..." disabled>
+                    <button type="button" onclick="sendAdminChatReply()">Send</button>
+                </div>
+            </div>
+        </div>
+    </section>
         </main>
     </div>
 
@@ -260,6 +531,13 @@
         let displayedMessageIds = new Set();
         let unreadCounts = {};
         let customQuickReplyItems = [];
+        let activeSupportView = 'chat';
+        let adminChatUnread = 0;
+        let currentAdminChatId = null;
+        let adminAgents = [];
+        let adminUnreadCounts = {};
+        let onlineInternalUserIds = new Set();
+        let adminChatSessions = {};
         const emptyChatHtml = '<div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-4xl mb-2"></i><p>Please select chat from head to start the chat</p></div>';
         
         if (!token) {
@@ -268,6 +546,7 @@
             verifyTokenAndLoad();
         }
         setupDelayedTooltips();
+        showSupportView(window.location.pathname.includes('/agent-chat') ? 'agentChat' : 'chat');
 
         function redirectToLogin() {
             localStorage.removeItem('supportToken');
@@ -293,9 +572,11 @@
                         currentAgent = data.user;
                         currentSiteId = data.user.siteId;
                         document.getElementById('agentName').innerText = data.user.name;
+                        document.getElementById('agentChatName').innerText = data.user.name;
                         resetChatState();
                         initSocket();
                         await loadAgentDetails();
+                        await loadAdminAgents();
                         await loadCustomQuickReplies();
                     } else {
                         alert('Login failed!');
@@ -319,11 +600,13 @@
                     currentAgent = data.user;
                     currentSiteId = currentAgent.siteId;
                     document.getElementById('agentName').innerText = currentAgent.name;
+                    document.getElementById('agentChatName').innerText = currentAgent.name;
                     localStorage.removeItem('lastThreadId');
                     resetChatState();
                     
                     initSocket();
                     await loadAgentDetails();
+                    await loadAdminAgents();
                     await loadCustomQuickReplies();
                 }
             } catch (err) { 
@@ -346,6 +629,87 @@
                     loadThreads();
                 }
             } catch (err) { console.error(err); }
+        }
+
+        async function loadAdminAgents() {
+            try {
+                const [res, unreadRes, onlineRes] = await Promise.all([
+                    fetch(`${API_URL}/support/admins`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`${API_URL}/internal-chat/unread-counts`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }),
+                    fetch(`${API_URL}/internal-chat/online-users`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    })
+                ]);
+                if (!res.ok) throw new Error('Failed to load team members');
+                adminAgents = await res.json();
+                adminUnreadCounts = unreadRes.ok ? await unreadRes.json() : {};
+                onlineInternalUserIds = new Set(onlineRes.ok ? await onlineRes.json() : []);
+                adminChatUnread = Object.values(adminUnreadCounts).reduce((total, count) => total + Number(count || 0), 0);
+                updateAdminChatBadge();
+                renderAdminAgentList();
+            } catch (err) {
+                console.error(err);
+                document.getElementById('adminAgentList').innerHTML = '<div class="admin-agent-empty">Failed to load team members</div>';
+            }
+        }
+
+        function renderAdminAgentList() {
+            const list = document.getElementById('adminAgentList');
+            const count = document.getElementById('adminAgentCount');
+            count.innerText = `${adminAgents.length} team members`;
+
+            if (!adminAgents.length) {
+                list.innerHTML = '<div class="admin-agent-empty">No team member found.</div>';
+                return;
+            }
+
+            list.innerHTML = adminAgents.map(admin => `
+                <button type="button" class="admin-agent-row ${currentAdminChatId === admin.id ? 'active' : ''}" onclick="selectAdminAgent(${admin.id})">
+                    <strong>
+                        <span class="admin-agent-dot"></span>${escapeHtml(admin.name || 'Admin')}
+                        <span class="agent-chat-unread" style="${Number(adminUnreadCounts[admin.id] || 0) > 0 ? 'display:flex' : ''}">${Number(adminUnreadCounts[admin.id] || 0)}</span>
+                    </strong>
+                    <div class="admin-agent-meta">
+                        <span class="admin-agent-role">${escapeHtml(admin.role || 'team')}</span>
+                        ${onlineInternalUserIds.has(admin.id) ? '<span class="admin-agent-online">Online</span>' : ''}
+                    </div>
+                    <small>${escapeHtml(admin.email || '')}</small>
+                </button>
+            `).join('');
+        }
+
+        async function selectAdminAgent(adminId) {
+            currentAdminChatId = Number(adminId);
+            const admin = adminAgents.find(item => item.id === currentAdminChatId);
+            document.getElementById('adminChatTitle').innerText = admin?.name || 'Admin Chat';
+            document.getElementById('adminChatSubtitle').innerText = admin?.email || 'Internal agent chat';
+            document.getElementById('adminChatInput').disabled = false;
+            adminChatUnread = Math.max(0, adminChatUnread - Number(adminUnreadCounts[currentAdminChatId] || 0));
+            adminUnreadCounts[currentAdminChatId] = 0;
+            updateAdminChatBadge();
+            renderAdminAgentList();
+            renderAdminChatMessages();
+            try {
+                const res = await fetch(`${API_URL}/internal-chat/${currentAdminChatId}/messages`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error('Failed to load chat');
+                const messages = await res.json();
+                adminChatSessions[currentAdminChatId] = messages.map(msg => ({
+                    id: msg.id,
+                    sender: msg.sender === 'me' ? 'agent' : 'admin',
+                    message: msg.message,
+                    createdAt: msg.createdAt
+                }));
+                renderAdminChatMessages();
+            } catch (err) {
+                console.error(err);
+            }
+            document.getElementById('adminChatInput').focus();
         }
 
         function resetChatState() {
@@ -530,6 +894,42 @@ function initSocket() {
             addMessageToChat(msg);
             loadThreads();
         }
+    });
+
+    socket.on('admin-agent-message', (msg) => {
+        const adminId = Number(msg.fromAdminId);
+        if (!adminChatSessions[adminId]) adminChatSessions[adminId] = [];
+        adminChatSessions[adminId].push({
+            id: msg.id,
+            sender: 'admin',
+            message: msg.message,
+            createdAt: msg.createdAt
+        });
+
+        if (!adminAgents.some(admin => admin.id === adminId)) {
+            adminAgents.push({ id: adminId, name: msg.fromAdminName || 'Admin', email: '' });
+        }
+
+        if (!currentAdminChatId) {
+            selectAdminAgent(adminId);
+        } else if (currentAdminChatId === adminId) {
+            renderAdminChatMessages();
+        }
+
+        if (!isAgentChatActive()) {
+            adminChatUnread += 1;
+            adminUnreadCounts[adminId] = Number(msg.unreadCount || (adminUnreadCounts[adminId] || 0) + 1);
+            updateAdminChatBadge();
+        } else if (currentAdminChatId !== adminId) {
+            adminChatUnread += 1;
+            adminUnreadCounts[adminId] = Number(msg.unreadCount || (adminUnreadCounts[adminId] || 0) + 1);
+            updateAdminChatBadge();
+        } else {
+            adminUnreadCounts[adminId] = 0;
+            markAdminChatRead(adminId);
+        }
+        renderAdminAgentList();
+        playNotificationSound();
     });
 }
             
@@ -923,6 +1323,94 @@ function initSocket() {
                 audio.play().catch(e => console.log('Sound not supported'));
             } catch(e) {}
         }
+
+        function showSupportView(viewName) {
+            activeSupportView = viewName;
+            const isAgentChat = viewName === 'agentChat';
+            document.getElementById('customerChatPage').classList.toggle('hidden', isAgentChat);
+            document.getElementById('agentChatPage').classList.toggle('hidden', !isAgentChat);
+            document.getElementById('navCustomerChat').classList.toggle('active', !isAgentChat);
+            document.getElementById('navAgentChat').classList.toggle('active', isAgentChat);
+
+            if (isAgentChat) {
+                adminChatUnread = 0;
+                updateAdminChatBadge();
+                if (!currentAdminChatId && adminAgents.length > 0) {
+                    selectAdminAgent(adminAgents[0].id);
+                } else {
+                    renderAdminAgentList();
+                }
+                renderAdminChatMessages();
+                if (currentAdminChatId) document.getElementById('adminChatInput').focus();
+            }
+        }
+
+        function isAgentChatActive() {
+            return activeSupportView === 'agentChat' && !document.getElementById('agentChatPage').classList.contains('hidden');
+        }
+
+        function markAdminChatRead(adminId) {
+            fetch(`${API_URL}/internal-chat/${adminId}/read`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => {});
+        }
+
+        function updateAdminChatBadge() {
+            const badges = [document.getElementById('adminChatBadge'), document.getElementById('adminChatPageBadge')];
+            badges.forEach(badge => {
+                if (!badge) return;
+                badge.innerText = adminChatUnread;
+                badge.style.display = adminChatUnread > 0 ? 'flex' : 'none';
+            });
+        }
+
+        function renderAdminChatMessages() {
+            const box = document.getElementById('adminChatMessages');
+            if (!currentAdminChatId) {
+                box.innerHTML = '<div class="text-center text-gray-400 py-8">Select admin from left to start chat</div>';
+                document.getElementById('adminChatInput').disabled = true;
+                return;
+            }
+
+            const messages = adminChatSessions[currentAdminChatId] || [];
+            if (!messages.length) {
+                box.innerHTML = '<div class="text-center text-gray-400 py-8">No admin messages yet</div>';
+                return;
+            }
+
+            box.innerHTML = messages.map(msg => `
+                <div class="admin-chat-row ${msg.sender === 'agent' ? 'sent' : ''}">
+                    <div class="admin-chat-bubble">
+                        <div>${escapeHtml(msg.message)}</div>
+                        <time>${new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
+                    </div>
+                </div>
+            `).join('');
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function sendAdminChatReply() {
+            const input = document.getElementById('adminChatInput');
+            const message = input.value.trim();
+            if (!message || !socket || !currentAdminChatId) return;
+
+            const localMessage = {
+                id: Date.now(),
+                sender: 'agent',
+                message,
+                createdAt: new Date().toISOString()
+            };
+
+            if (!adminChatSessions[currentAdminChatId]) adminChatSessions[currentAdminChatId] = [];
+            adminChatSessions[currentAdminChatId].push(localMessage);
+            renderAdminChatMessages();
+            socket.emit('agent-admin-message', {
+                toAdminId: currentAdminChatId,
+                message
+            });
+            input.value = '';
+        }
         
         function escapeHtml(text) {
             if (!text) return '';
@@ -941,6 +1429,9 @@ function initSocket() {
         document.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && document.getElementById('messageInput') === document.activeElement) {
                 sendMessage();
+            }
+            if (e.key === 'Enter' && document.getElementById('adminChatInput') === document.activeElement) {
+                sendAdminChatReply();
             }
         });
         

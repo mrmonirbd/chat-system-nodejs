@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 
 type AdminView = 'dashboard' | 'chat' | 'agentChat' | 'sites' | 'support' | 'apiKeys' | 'users';
 type AnalyticsRange = '1d' | '7d' | '30d' | '6m' | '1y';
@@ -11,7 +11,8 @@ declare global {
 }
 
 type AdminSocket = {
-  on: (event: string, handler: (payload: { count?: number }) => void) => void;
+  on: (event: string, handler: (payload: unknown) => void) => void;
+  emit: (event: string, payload?: unknown) => void;
   off?: (event: string) => void;
   disconnect: () => void;
 };
@@ -77,6 +78,14 @@ type AgentChatMessage = {
   createdAt: string;
 };
 
+type InternalChatMessage = {
+  id: number;
+  senderRole: 'admin' | 'support';
+  sender: 'me' | 'other';
+  message: string;
+  createdAt: string;
+};
+
 type AgentChatSession = {
   agent: User;
   draft: string;
@@ -109,15 +118,19 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [onlineChats, setOnlineChats] = useState<Thread[]>([]);
   const [onlineAgents, setOnlineAgents] = useState<OnlineAgent[]>([]);
+  const [adminSocket, setAdminSocket] = useState<AdminSocket | null>(null);
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [floatingChatOpen, setFloatingChatOpen] = useState(false);
   const [agentChats, setAgentChats] = useState<AgentChatSession[]>([]);
+  const [agentUnreadCounts, setAgentUnreadCounts] = useState<Record<number, number>>({});
   const [activeAgentId, setActiveAgentId] = useState<number | null>(null);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [adminDraft, setAdminDraft] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const viewRef = useRef(view);
+  const activeAgentIdRef = useRef(activeAgentId);
 
   function authHeaders() {
     return { Authorization: `Bearer ${token}` };
@@ -151,6 +164,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
         fetchJson<OnlineAgent[]>(`${API_URL}/admin/online-agents`),
         fetchJson<Thread[]>(`${API_URL}/admin/online-chats`)
       ]);
+      const unreadData = await fetchJson<Record<number, number>>(`${API_URL}/internal-chat/unread-counts`);
 
       setAnalytics(analyticsData);
       setSites(siteData);
@@ -158,6 +172,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
       setThreads(threadData);
       setOnlineAgents(agentData);
       setOnlineChats(onlineChatData);
+      setAgentUnreadCounts(unreadData);
       setError('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load admin data');
@@ -171,6 +186,11 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   }, [token, range]);
 
   useEffect(() => {
+    viewRef.current = view;
+    activeAgentIdRef.current = activeAgentId;
+  }, [view, activeAgentId]);
+
+  useEffect(() => {
     if (!token) return;
 
     let cancelled = false;
@@ -179,21 +199,62 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     const connectSocket = () => {
       if (cancelled || !window.io) return;
       socket = window.io({ transports: ['websocket', 'polling'] });
+      socket.emit('admin-auth', token);
+      setAdminSocket(socket);
       socket.on('active-chat-count', payload => {
+        const data = payload as { count?: number };
         setAnalytics(prev => prev ? {
           ...prev,
-          totals: { ...prev.totals, activeChats: Number(payload.count || 0) }
+          totals: { ...prev.totals, activeChats: Number(data.count || 0) }
         } : prev);
         fetchJson<Thread[]>(`${API_URL}/admin/online-chats`).then(setOnlineChats).catch(() => {});
       });
       socket.on('total-message-count', payload => {
+        const data = payload as { count?: number };
         setAnalytics(prev => prev ? {
           ...prev,
-          totals: { ...prev.totals, totalMessages: Number(payload.count || 0) }
+          totals: { ...prev.totals, totalMessages: Number(data.count || 0) }
         } : prev);
       });
       socket.on('new-thread', () => loadAll());
       socket.on('new-thread-message', () => loadAll());
+      socket.on('agent-admin-message', payload => {
+        const data = payload as { id: number; fromSupportId: number; fromSupportName: string; fromSupportEmail?: string; siteId?: number | null; message: string; unreadCount?: number; createdAt: string };
+        setAgentChats(prev => {
+          const existing = prev.find(chat => chat.agent.id === data.fromSupportId);
+          if (!existing) {
+            return [...prev, {
+              agent: {
+                id: data.fromSupportId,
+                name: data.fromSupportName || 'Support Agent',
+                email: data.fromSupportEmail || '',
+                role: 'support',
+                siteId: data.siteId || null,
+                isActive: true
+              },
+              draft: '',
+              open: true,
+            unread: activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat' ? 0 : Number(data.unreadCount || 1),
+              messages: [{ id: data.id, sender: 'agent', message: data.message, createdAt: data.createdAt }]
+            }];
+          }
+
+          return prev.map(chat => chat.agent.id === data.fromSupportId ? {
+            ...chat,
+            open: true,
+            unread: activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat' ? 0 : Number(data.unreadCount || chat.unread + 1),
+            messages: [...chat.messages, { id: data.id, sender: 'agent', message: data.message, createdAt: data.createdAt }]
+          } : chat);
+        });
+        setAgentUnreadCounts(prev => ({
+          ...prev,
+          [data.fromSupportId]: activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat' ? 0 : Number(data.unreadCount || (prev[data.fromSupportId] || 0) + 1)
+        }));
+        if (activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat') {
+          fetchJson(`${API_URL}/internal-chat/${data.fromSupportId}/read`, { method: 'POST' }).catch(() => {});
+        }
+        showNotice(`New message from ${data.fromSupportName || 'Support Agent'}`);
+      });
     };
 
     if (window.io) {
@@ -208,6 +269,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
 
     return () => {
       cancelled = true;
+      setAdminSocket(null);
       socket?.disconnect();
     };
   }, [token, range]);
@@ -236,11 +298,12 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     setFloatingChatOpen(true);
   }
 
-  function openAgentChat(agent: User) {
+  async function openAgentChat(agent: User) {
     setOnlineOpen(false);
     setFloatingChatOpen(false);
     setActiveAgentId(agent.id);
     goTo('/admin/agent-chat', 'agentChat');
+    setAgentUnreadCounts(prev => ({ ...prev, [agent.id]: 0 }));
     setAgentChats(prev => {
       const existing = prev.find(chat => chat.agent.id === agent.id);
       if (existing) {
@@ -252,14 +315,22 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
         draft: '',
         open: true,
         unread: 0,
-        messages: [{
-          id: Date.now(),
-          sender: 'agent',
-          message: `Hi, this is ${agent.name}.`,
-          createdAt: new Date().toISOString()
-        }]
+        messages: []
       }];
     });
+
+    try {
+      const history = await fetchJson<InternalChatMessage[]>(`${API_URL}/internal-chat/${agent.id}/messages`);
+      const messages = history.map(message => ({
+        id: message.id,
+        sender: message.senderRole === 'admin' ? 'admin' as const : 'agent' as const,
+        message: message.message,
+        createdAt: message.createdAt
+      }));
+      setAgentChats(prev => prev.map(chat => chat.agent.id === agent.id ? { ...chat, messages, unread: 0 } : chat));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load agent chat');
+    }
   }
 
   async function sendAdminMessage(event: FormEvent<HTMLFormElement>) {
@@ -299,6 +370,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
         createdAt: new Date().toISOString()
       }]
     } : item));
+    adminSocket?.emit('admin-agent-message', { toSupportId: agentId, message });
   }
 
   function updateAgentDraft(agentId: number, draft: string) {
@@ -352,7 +424,10 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   const onlineTotal = onlineAgents.length;
   const onlineThreadIds = new Set(onlineChats.map(thread => thread.id));
   const onlineAgentIds = new Set(onlineAgents.map(agent => agent.id));
-  const unreadAgentCounts = new Map(agentChats.map(chat => [chat.agent.id, chat.unread]));
+  function getAgentUnread(agentId: number) {
+    const chatUnread = agentChats.find(chat => chat.agent.id === agentId)?.unread || 0;
+    return Math.max(chatUnread, Number(agentUnreadCounts[agentId] || 0));
+  }
   const quickReplies = [
     'Hello! How can I help you today?',
     'Thanks for reaching out. I am checking this for you.',
@@ -404,7 +479,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
                     <strong>
                       {agent.name}
                       {onlineAgentIds.has(agent.id) && <span className="online-menu-mark">Online</span>}
-                      {Number(unreadAgentCounts.get(agent.id) || 0) > 0 && <span className="online-menu-unread">{unreadAgentCounts.get(agent.id)}</span>}
+                      {getAgentUnread(agent.id) > 0 && <span className="online-menu-unread">{getAgentUnread(agent.id)}</span>}
                     </strong>
                     <small>{agent.email}</small>
                   </button>
@@ -582,10 +657,10 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
                     <div className="admin-thread-title">
                       <span className="thread-avatar">●</span>
                       <strong>{agent.name}</strong>
+                      <span className="thread-status">{agent.role}</span>
                       {onlineAgentIds.has(agent.id) && <span className="thread-online-mark">Online</span>}
+                      {getAgentUnread(agent.id) > 0 && <span className="online-menu-unread">{getAgentUnread(agent.id)}</span>}
                     </div>
-                    <p>{agent.email}</p>
-                    <small>{agent.siteId ? `Site #${agent.siteId}` : 'No site assigned'}</small>
                   </button>
                 ))}
               </div>

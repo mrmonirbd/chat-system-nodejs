@@ -316,6 +316,15 @@ const PasswordResetToken = sequelize.define('PasswordResetToken', {
   usedAt: { type: DataTypes.DATE, allowNull: true }
 }, { timestamps: true });
 
+const InternalChatMessage = sequelize.define('InternalChatMessage', {
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  senderId: { type: DataTypes.INTEGER, allowNull: false },
+  receiverId: { type: DataTypes.INTEGER, allowNull: false },
+  senderRole: { type: DataTypes.ENUM('admin', 'support'), allowNull: false },
+  message: { type: DataTypes.TEXT, allowNull: false },
+  readAt: { type: DataTypes.DATE, allowNull: true }
+}, { timestamps: true });
+
 // ========== RELATIONSHIPS ==========
 Site.hasMany(User, { foreignKey: 'siteId' });
 User.belongsTo(Site, { foreignKey: 'siteId' });
@@ -335,6 +344,11 @@ QuickReply.belongsTo(User, { foreignKey: 'supportId' });
 User.hasMany(PasswordResetToken, { foreignKey: 'userId' });
 PasswordResetToken.belongsTo(User, { foreignKey: 'userId' });
 
+User.hasMany(InternalChatMessage, { as: 'SentInternalMessages', foreignKey: 'senderId' });
+User.hasMany(InternalChatMessage, { as: 'ReceivedInternalMessages', foreignKey: 'receiverId' });
+InternalChatMessage.belongsTo(User, { as: 'Sender', foreignKey: 'senderId' });
+InternalChatMessage.belongsTo(User, { as: 'Receiver', foreignKey: 'receiverId' });
+
 // ========== SYNC DATABASE ==========
 // sequelize.sync({ alter: false }).then(() => {
 //   console.log(' MySQL tables ready');
@@ -346,6 +360,12 @@ PasswordResetToken.sync().then(() => {
   console.log(' Password reset token table ready');
 }).catch(err => {
   console.error(' Password reset token table sync error:', err);
+});
+
+InternalChatMessage.sync().then(() => {
+  console.log(' Internal chat message table ready');
+}).catch(err => {
+  console.error(' Internal chat message table sync error:', err);
 });
 
 // ========== MIDDLEWARE ==========
@@ -653,6 +673,144 @@ app.get('/api/users/list', authMiddleware, async (req, res) => {
     });
 
     res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/support/admins', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'support') return res.status(403).json({ error: 'Support only' });
+
+    const users = await User.findAll({
+      where: {
+        id: { [Op.ne]: req.user.id },
+        role: { [Op.in]: ['admin', 'support'] },
+        isActive: true
+      },
+      attributes: ['id', 'name', 'email', 'role', 'siteId'],
+      order: [
+        ['role', 'ASC'],
+        ['name', 'ASC']
+      ]
+    });
+
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/internal-chat/unread-counts', authMiddleware, async (req, res) => {
+  try {
+    const rows = await InternalChatMessage.findAll({
+      where: {
+        receiverId: req.user.id,
+        readAt: null
+      },
+      attributes: [
+        'senderId',
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      group: ['senderId']
+    });
+
+    res.json(rows.reduce((counts, row) => {
+      counts[row.senderId] = Number(row.get('count') || 0);
+      return counts;
+    }, {}));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/internal-chat/online-users', authMiddleware, async (req, res) => {
+  try {
+    const ids = new Set();
+
+    for (const roomName of io.sockets.adapter.rooms.keys()) {
+      if (roomName.startsWith('admin-') || roomName.startsWith('support-')) {
+        const id = Number(roomName.split('-')[1]);
+        if (id && id !== req.user.id) ids.add(id);
+      }
+    }
+
+    res.json(Array.from(ids));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/internal-chat/:otherUserId/messages', authMiddleware, async (req, res) => {
+  try {
+    const otherUserId = parseInt(req.params.otherUserId, 10);
+    if (!otherUserId) return res.status(400).json({ error: 'User is required' });
+
+    const otherUser = await User.findByPk(otherUserId, {
+      attributes: ['id', 'name', 'email', 'role']
+    });
+    if (!otherUser) return res.status(404).json({ error: 'User not found' });
+
+    if (req.user.role === 'admin' && otherUser.role !== 'support') {
+      return res.status(403).json({ error: 'Admin can chat with support agents only' });
+    }
+    if (req.user.role === 'support' && otherUser.role !== 'admin' && otherUser.role !== 'support') {
+      return res.status(403).json({ error: 'Support can chat with admins and agents only' });
+    }
+
+    const messages = await InternalChatMessage.findAll({
+      where: {
+        [Op.or]: [
+          { senderId: req.user.id, receiverId: otherUserId },
+          { senderId: otherUserId, receiverId: req.user.id }
+        ]
+      },
+      order: [['createdAt', 'ASC']]
+    });
+
+    await InternalChatMessage.update(
+      { readAt: new Date() },
+      {
+        where: {
+          senderId: otherUserId,
+          receiverId: req.user.id,
+          readAt: null
+        }
+      }
+    );
+
+    res.json(messages.map(message => ({
+      id: message.id,
+      senderId: message.senderId,
+      receiverId: message.receiverId,
+      senderRole: message.senderRole,
+      sender: message.senderId === req.user.id ? 'me' : 'other',
+      message: message.message,
+      readAt: message.readAt,
+      createdAt: message.createdAt
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/internal-chat/:otherUserId/read', authMiddleware, async (req, res) => {
+  try {
+    const otherUserId = parseInt(req.params.otherUserId, 10);
+    if (!otherUserId) return res.status(400).json({ error: 'User is required' });
+
+    await InternalChatMessage.update(
+      { readAt: new Date() },
+      {
+        where: {
+          senderId: otherUserId,
+          receiverId: req.user.id,
+          readAt: null
+        }
+      }
+    );
+
+    res.json({ message: 'Marked as read' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1186,6 +1344,9 @@ app.get('/dashboard', (req, res) => {
 app.get('/support-panel', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/admin-panel/support-panel.html'));
 });
+app.get('/support-panel/agent-chat', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/admin-panel/support-panel.html'));
+});
 app.get('/widget.js', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/widget.js'));
 });
@@ -1254,6 +1415,24 @@ app.get('/api/threads/all', authMiddleware, async (req, res) => {
 io.on('connection', (socket) => {
   console.log('🔌 New connection:', socket.id);
 
+  socket.on('admin-auth', async (token) => {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const adminUser = await User.findByPk(decoded.id, {
+        attributes: ['id', 'name', 'email', 'role']
+      });
+
+      if (!adminUser || adminUser.role !== 'admin') return;
+
+      socket.adminUser = adminUser.toJSON();
+      socket.join('admins');
+      socket.join(`admin-${adminUser.id}`);
+      console.log(`Admin ${adminUser.email} connected`);
+    } catch (err) {
+      console.error('Invalid admin token');
+    }
+  });
+
   // Support authentication
   socket.on('support-auth', async (token) => {
     try {
@@ -1313,6 +1492,100 @@ io.on('connection', (socket) => {
       socket.openChatBoxKey = null;
       io.emit('active-chat-count', { count: getActiveVisitorChatCount() });
     }
+  });
+
+  socket.on('admin-agent-message', async (data = {}) => {
+    if (!socket.adminUser) return;
+
+    const toSupportId = parseInt(data.toSupportId, 10);
+    const message = String(data.message || '').trim();
+    if (!toSupportId || !message) return;
+
+    const savedMessage = await InternalChatMessage.create({
+      senderId: socket.adminUser.id,
+      receiverId: toSupportId,
+      senderRole: 'admin',
+      message
+    });
+    const unreadCount = await InternalChatMessage.count({
+      where: {
+        senderId: socket.adminUser.id,
+        receiverId: toSupportId,
+        readAt: null
+      }
+    });
+
+    const messageData = {
+      id: savedMessage.id,
+      fromAdminId: socket.adminUser.id,
+      fromAdminName: socket.adminUser.name || 'Admin',
+      toSupportId,
+      sender: 'admin',
+      message,
+      unreadCount,
+      createdAt: savedMessage.createdAt
+    };
+
+    io.to(`support-${toSupportId}`).emit('admin-agent-message', messageData);
+    socket.emit('admin-agent-message-sent', messageData);
+  });
+
+  socket.on('agent-admin-message', async (data = {}) => {
+    if (!socket.supportUser) return;
+
+    const toAdminId = parseInt(data.toAdminId, 10);
+    const message = String(data.message || '').trim();
+    if (!toAdminId || !message) return;
+
+    const receiver = await User.findByPk(toAdminId, {
+      attributes: ['id', 'name', 'email', 'role']
+    });
+    if (!receiver || (receiver.role !== 'admin' && receiver.role !== 'support')) return;
+
+    const savedMessage = await InternalChatMessage.create({
+      senderId: socket.supportUser.id,
+      receiverId: toAdminId,
+      senderRole: 'support',
+      message
+    });
+    const unreadCount = await InternalChatMessage.count({
+      where: {
+        senderId: socket.supportUser.id,
+        receiverId: toAdminId,
+        readAt: null
+      }
+    });
+
+    const messageData = {
+      id: savedMessage.id,
+      fromSupportId: socket.supportUser.id,
+      fromSupportName: socket.supportUser.name || 'Support Agent',
+      fromSupportEmail: socket.supportUser.email || '',
+      siteId: socket.supportUser.siteId || null,
+      toAdminId,
+      sender: 'agent',
+      message,
+      unreadCount,
+      createdAt: savedMessage.createdAt
+    };
+
+    if (receiver.role === 'admin') {
+      io.to(`admin-${toAdminId}`).emit('agent-admin-message', messageData);
+    } else {
+      io.to(`support-${toAdminId}`).emit('admin-agent-message', {
+        id: savedMessage.id,
+        fromAdminId: socket.supportUser.id,
+        fromAdminName: socket.supportUser.name || 'Support Agent',
+        fromAdminEmail: socket.supportUser.email || '',
+        fromRole: 'support',
+        toSupportId: toAdminId,
+        sender: 'support',
+        message,
+        unreadCount,
+        createdAt: savedMessage.createdAt
+      });
+    }
+    socket.emit('agent-admin-message-sent', messageData);
   });
 
   // Visitor joins thread
