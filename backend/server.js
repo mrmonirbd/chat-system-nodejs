@@ -42,7 +42,7 @@ app.use(cors({
 app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../admin-panel')));
+app.use(express.static(path.join(__dirname, '../admin-panel'), { index: false }));
 app.use('/frontend', express.static(path.join(__dirname, '../frontend')));
 
 // MySQL Connection
@@ -290,9 +290,35 @@ app.get('/api/sites/list', authMiddleware, async (req, res) => {
 app.get('/api/sites/:siteId', authMiddleware, async (req, res) => {
   try {
     const site = await Site.findByPk(req.params.siteId, {
-      attributes: ['id', 'name', 'domain', 'apiKey']
+      attributes: ['id', 'name', 'domain', 'apiKey', 'widgetColor', 'greetingMessage']
     });
     if (!site) return res.status(404).json({ error: 'Site not found' });
+    res.json(site);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/sites/:siteId/widget-settings', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    const { widgetColor, greetingMessage } = req.body;
+    const site = await Site.findByPk(req.params.siteId);
+    if (!site) return res.status(404).json({ error: 'Site not found' });
+
+    if (widgetColor !== undefined) {
+      if (!/^#[0-9A-Fa-f]{6}$/.test(widgetColor)) {
+        return res.status(400).json({ error: 'Invalid widget color' });
+      }
+      site.widgetColor = widgetColor;
+    }
+
+    if (greetingMessage !== undefined) {
+      site.greetingMessage = greetingMessage.trim() || 'Hello! How can we help you?';
+    }
+
+    await site.save();
     res.json(site);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -505,8 +531,20 @@ app.get('/api/threads/:threadId/messages', async (req, res) => {
 });
 
 // Serve static files
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+app.get('/about', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/about.html'));
+});
+app.get('/contact', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/contact.html'));
+});
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '../admin-panel/index.html'));
+});
+app.get('/dashboard', (req, res) => {
+  res.redirect('/admin');
 });
 app.get('/support-panel', (req, res) => {
   res.sendFile(path.join(__dirname, '../admin-panel/support-panel.html'));

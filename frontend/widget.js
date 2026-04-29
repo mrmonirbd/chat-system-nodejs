@@ -6,7 +6,8 @@
         socket: null,
         availabilitySocket: null,
         threadId: null,
-        visitorId: null
+        visitorId: null,
+        widgetColor: '#3B82F6'
     };
     
     const scriptTag = document.querySelector('script[data-chat-widget]');
@@ -58,6 +59,7 @@
     function initWidget(settings, supportAvailability) {
         const widgetColor = settings?.widgetColor || '#3B82F6';
         const greetingMessage = settings?.greetingMessage || 'Hello! How can we help you?';
+        CONFIG.widgetColor = widgetColor;
         injectWidgetStyles();
         const widgetHTML = `
             <div id="chat-widget-container" style="position:fixed; bottom:20px; right:20px; z-index:99999; font-family:system-ui, -apple-system, sans-serif;">
@@ -458,7 +460,7 @@
         div.style.justifyContent = isVisitor ? 'flex-end' : 'flex-start';
         
         div.innerHTML = `
-            <div style="max-width:75%; padding:10px 14px; border-radius:12px; background:${isVisitor ? '#3B82F6' : '#e5e7eb'}; color:${isVisitor ? 'white' : '#1f2937'}; word-wrap:break-word;">
+            <div style="max-width:75%; padding:10px 14px; border-radius:12px; background:${isVisitor ? CONFIG.widgetColor : '#e5e7eb'}; color:${isVisitor ? 'white' : '#1f2937'}; word-wrap:break-word;">
                 ${escapeHtml(msg.message)}
                 <div style="font-size:10px; margin-top:4px; opacity:0.7;">
                     ${new Date(msg.createdAt).toLocaleTimeString()}
