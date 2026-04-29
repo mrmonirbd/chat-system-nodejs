@@ -111,13 +111,16 @@
         toggle.onclick = () => {
             if (windowDiv.style.display === 'none' || windowDiv.style.display === '') {
                 windowDiv.style.display = 'flex';
+                notifyChatBoxOpen();
             } else {
                 windowDiv.style.display = 'none';
+                notifyChatBoxClose();
             }
         };
         
         close.onclick = () => {
             windowDiv.style.display = 'none';
+            notifyChatBoxClose();
         };
 
         send.onclick = () => sendVisitorMessage(messagesDiv, input, send);
@@ -198,6 +201,21 @@
         CONFIG.availabilitySocket.on('support-availability', (supportAvailability) => {
             updateAvailabilityMessage(supportAvailability);
         });
+    }
+
+    function notifyChatBoxOpen() {
+        if (CONFIG.availabilitySocket?.connected && CONFIG.siteId) {
+            CONFIG.availabilitySocket.emit('chat-box-open', {
+                siteId: CONFIG.siteId,
+                visitorId: CONFIG.visitorId
+            });
+        }
+    }
+
+    function notifyChatBoxClose() {
+        if (CONFIG.availabilitySocket?.connected) {
+            CONFIG.availabilitySocket.emit('chat-box-close');
+        }
     }
 
     async function sendVisitorMessage(messagesDiv, input, send) {

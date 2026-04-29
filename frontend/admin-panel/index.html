@@ -857,6 +857,10 @@ function initAdminSocket() {
         loadAnalytics();
         loadSites();
     });
+
+    adminSocket.on('active-chat-count', (data) => {
+        document.getElementById('activeChats').innerText = data.count || 0;
+    });
     
     adminSocket.on('connect_error', (err) => {
         console.error('Admin socket error:', err);
