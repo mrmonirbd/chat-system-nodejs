@@ -352,6 +352,33 @@ app.get('/api/sites/config/:apiKey', async (req, res) => {
   }
 });
 
+// Get existing visitor thread without creating a new one
+app.get('/api/threads/existing', async (req, res) => {
+  try {
+    const { siteId, visitorId } = req.query;
+    if (!siteId || !visitorId) {
+      return res.status(400).json({ error: 'siteId and visitorId are required' });
+    }
+
+    const thread = await Thread.findOne({
+      where: { siteId, visitorId, status: ['open', 'pending'] },
+      order: [['lastMessageAt', 'DESC']]
+    });
+
+    if (!thread) return res.json({ thread: null, messages: [] });
+
+    const messages = await Message.findAll({
+      where: { threadId: thread.id },
+      order: [['createdAt', 'ASC']]
+    });
+
+    res.json({ thread, messages });
+  } catch (err) {
+    console.error('Get existing thread error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create Thread
 app.post('/api/threads/create', async (req, res) => {
   try {

@@ -25,6 +25,8 @@
     let displayedMessages = new Set();
     let chatConnectPromise = null;
     let supportTypingTimeout = null;
+    let widgetSettings = null;
+    let currentSupportAvailability = null;
     
     function getVisitorId() {
         let visitorId = localStorage.getItem('chat_visitor_id');
@@ -43,8 +45,10 @@
             if (!response.ok) throw new Error('Invalid API key');
             const data = await response.json();
             CONFIG.siteId = data.siteId;
+            widgetSettings = data.settings;
+            currentSupportAvailability = data.supportAvailability;
             console.log('✅ Config loaded, siteId:', CONFIG.siteId);
-            initWidget(data.settings, data.supportAvailability);
+            initWidget(widgetSettings, currentSupportAvailability);
             connectAvailabilityUpdates();
         } catch (err) {
             console.error('❌ Config error:', err);
@@ -54,6 +58,7 @@
     function initWidget(settings, supportAvailability) {
         const widgetColor = settings?.widgetColor || '#3B82F6';
         const greetingMessage = settings?.greetingMessage || 'Hello! How can we help you?';
+        injectWidgetStyles();
         const widgetHTML = `
             <div id="chat-widget-container" style="position:fixed; bottom:20px; right:20px; z-index:99999; font-family:system-ui, -apple-system, sans-serif;">
                 <div id="chat-toggle" style="background:${widgetColor}; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.15);">
@@ -99,6 +104,7 @@
 
         showGreetingMessage(messagesDiv, greetingMessage, supportAvailability);
         updateSupportHeader(supportAvailability);
+        loadExistingChat(messagesDiv);
         
         toggle.onclick = () => {
             if (windowDiv.style.display === 'none' || windowDiv.style.display === '') {
@@ -142,6 +148,7 @@
     }
 
     function updateAvailabilityMessage(supportAvailability) {
+        currentSupportAvailability = supportAvailability;
         const availabilityRow = document.getElementById('chat-availability-row');
         const availabilityDiv = document.getElementById('chat-availability-message');
         const availabilityMessage = getAvailabilityMessage(supportAvailability);
@@ -250,9 +257,39 @@
         CONFIG.threadId = data.threadId;
         console.log('✅ Thread:', CONFIG.threadId);
         
+        return connectThreadSocket(messagesDiv, { clearOnPreviousMessages: true });
+    }
+
+    async function loadExistingChat(messagesDiv) {
+        try {
+            const query = new URLSearchParams({
+                siteId: CONFIG.siteId,
+                visitorId: CONFIG.visitorId
+            });
+            const response = await fetch(`${CONFIG.apiUrl}/api/threads/existing?${query.toString()}`);
+            if (!response.ok) return;
+
+            const data = await response.json();
+            if (!data.thread) return;
+
+            CONFIG.threadId = data.thread.id;
+            renderMessages(messagesDiv, data.messages || []);
+            await connectThreadSocket(messagesDiv, { clearOnPreviousMessages: false });
+        } catch (err) {
+            console.error('Load existing chat error:', err);
+        }
+    }
+
+    async function connectThreadSocket(messagesDiv, options = {}) {
+        const { clearOnPreviousMessages = true } = options;
+
         await loadSocketIO();
 
         return new Promise((resolve, reject) => {
+            if (CONFIG.socket) {
+                CONFIG.socket.disconnect();
+            }
+
             CONFIG.socket = io(CONFIG.apiUrl);
             let previousMessagesLoaded = false;
 
@@ -262,16 +299,10 @@
             });
             
             CONFIG.socket.on('previous-messages', (messages) => {
-                messagesDiv.innerHTML = '';
-                displayedMessages.clear();
+                if (clearOnPreviousMessages) {
+                    renderMessages(messagesDiv, messages);
+                }
                 hideSupportTyping();
-                messages.forEach(msg => {
-                    const uniqueKey = `${msg.id}_${msg.sender}_${msg.message.substring(0, 20)}`;
-                    if (!displayedMessages.has(uniqueKey)) {
-                        displayedMessages.add(uniqueKey);
-                        addMessageToUI(messagesDiv, msg);
-                    }
-                });
                 previousMessagesLoaded = true;
                 resolve();
             });
@@ -306,14 +337,47 @@
         });
     }
 
+    function renderMessages(messagesDiv, messages) {
+        messagesDiv.innerHTML = '';
+        displayedMessages.clear();
+
+        if (!messages.length) {
+            showGreetingMessage(messagesDiv, widgetSettings?.greetingMessage || 'Hello! How can we help you?', currentSupportAvailability);
+            return;
+        }
+
+        messages.forEach(msg => {
+            const uniqueKey = `${msg.id}_${msg.sender}_${msg.message.substring(0, 20)}`;
+            if (!displayedMessages.has(uniqueKey)) {
+                displayedMessages.add(uniqueKey);
+                addMessageToUI(messagesDiv, msg);
+            }
+        });
+    }
+
     function showSupportTyping(messagesDiv, isTyping) {
         const existingIndicator = document.getElementById('support-typing-indicator');
 
         if (!isTyping) {
-            hideSupportTyping();
+            clearTimeout(supportTypingTimeout);
+            supportTypingTimeout = setTimeout(() => {
+                hideSupportTyping();
+            }, 4000);
             return;
         }
 
+        if (!existingIndicator) {
+            addSupportTypingIndicator(messagesDiv);
+        }
+
+        clearTimeout(supportTypingTimeout);
+        supportTypingTimeout = setTimeout(() => {
+            hideSupportTyping();
+        }, 5000);
+    }
+
+    function addSupportTypingIndicator(messagesDiv) {
+        const existingIndicator = document.getElementById('support-typing-indicator');
         if (!existingIndicator) {
             const typingDiv = document.createElement('div');
             typingDiv.id = 'support-typing-indicator';
@@ -324,26 +388,52 @@
                 <div style="padding:10px 14px; border-radius:12px; background:#e5e7eb; color:#1f2937; display:flex; align-items:center; gap:6px;">
                     <span style="font-size:12px; color:#4b5563;">Typing</span>
                     <span style="display:flex; gap:3px;">
-                        <span style="width:5px; height:5px; border-radius:50%; background:#6b7280; opacity:0.5;"></span>
-                        <span style="width:5px; height:5px; border-radius:50%; background:#6b7280; opacity:0.75;"></span>
-                        <span style="width:5px; height:5px; border-radius:50%; background:#6b7280;"></span>
+                        <span class="chat-typing-dot"></span>
+                        <span class="chat-typing-dot"></span>
+                        <span class="chat-typing-dot"></span>
                     </span>
                 </div>
             `;
             messagesDiv.appendChild(typingDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
-
-        clearTimeout(supportTypingTimeout);
-        supportTypingTimeout = setTimeout(() => {
-            hideSupportTyping();
-        }, 2500);
     }
 
     function hideSupportTyping() {
         clearTimeout(supportTypingTimeout);
         const existingIndicator = document.getElementById('support-typing-indicator');
         if (existingIndicator) existingIndicator.remove();
+    }
+
+    function injectWidgetStyles() {
+        if (document.getElementById('chat-widget-styles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'chat-widget-styles';
+        style.textContent = `
+            @keyframes chatTypingBounce {
+                0%, 80%, 100% { transform: translateY(0); opacity: 0.45; }
+                40% { transform: translateY(-4px); opacity: 1; }
+            }
+
+            .chat-typing-dot {
+                width: 5px;
+                height: 5px;
+                border-radius: 50%;
+                background: #6b7280;
+                display: inline-block;
+                animation: chatTypingBounce 1.4s infinite ease-in-out;
+            }
+
+            .chat-typing-dot:nth-child(2) {
+                animation-delay: 0.15s;
+            }
+
+            .chat-typing-dot:nth-child(3) {
+                animation-delay: 0.3s;
+            }
+        `;
+        document.head.appendChild(style);
     }
     
     function loadSocketIO() {
