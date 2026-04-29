@@ -1,6 +1,6 @@
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
 
-type AdminView = 'dashboard' | 'chat' | 'sites' | 'support' | 'apiKeys' | 'users';
+type AdminView = 'dashboard' | 'chat' | 'agentChat' | 'sites' | 'support' | 'apiKeys' | 'users';
 type AnalyticsRange = '1d' | '7d' | '30d' | '6m' | '1y';
 type AdminIconName = 'dashboard' | 'chat' | 'sites' | 'key' | 'support' | 'users' | 'logout';
 
@@ -70,6 +70,21 @@ type Message = {
   createdAt: string;
 };
 
+type AgentChatMessage = {
+  id: number;
+  sender: 'admin' | 'agent';
+  message: string;
+  createdAt: string;
+};
+
+type AgentChatSession = {
+  agent: User;
+  draft: string;
+  messages: AgentChatMessage[];
+  open: boolean;
+  unread: number;
+};
+
 type OnlineAgent = {
   id: number;
   name: string;
@@ -96,6 +111,8 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   const [onlineAgents, setOnlineAgents] = useState<OnlineAgent[]>([]);
   const [onlineOpen, setOnlineOpen] = useState(false);
   const [floatingChatOpen, setFloatingChatOpen] = useState(false);
+  const [agentChats, setAgentChats] = useState<AgentChatSession[]>([]);
+  const [activeAgentId, setActiveAgentId] = useState<number | null>(null);
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [adminDraft, setAdminDraft] = useState('');
@@ -219,6 +236,32 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     setFloatingChatOpen(true);
   }
 
+  function openAgentChat(agent: User) {
+    setOnlineOpen(false);
+    setFloatingChatOpen(false);
+    setActiveAgentId(agent.id);
+    goTo('/admin/agent-chat', 'agentChat');
+    setAgentChats(prev => {
+      const existing = prev.find(chat => chat.agent.id === agent.id);
+      if (existing) {
+        return prev.map(chat => chat.agent.id === agent.id ? { ...chat, open: true, unread: 0 } : chat);
+      }
+
+      return [...prev, {
+        agent,
+        draft: '',
+        open: true,
+        unread: 0,
+        messages: [{
+          id: Date.now(),
+          sender: 'agent',
+          message: `Hi, this is ${agent.name}.`,
+          createdAt: new Date().toISOString()
+        }]
+      }];
+    });
+  }
+
   async function sendAdminMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedThread) return;
@@ -238,6 +281,33 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message');
     }
+  }
+
+  function sendAgentMessage(event: FormEvent<HTMLFormElement>, agentId: number) {
+    event.preventDefault();
+    const chat = agentChats.find(item => item.agent.id === agentId);
+    const message = chat?.draft.trim();
+    if (!message) return;
+
+    setAgentChats(prev => prev.map(item => item.agent.id === agentId ? {
+      ...item,
+      draft: '',
+      messages: [...item.messages, {
+        id: Date.now(),
+        sender: 'admin',
+        message,
+        createdAt: new Date().toISOString()
+      }]
+    } : item));
+  }
+
+  function updateAgentDraft(agentId: number, draft: string) {
+    setAgentChats(prev => prev.map(chat => chat.agent.id === agentId ? { ...chat, draft } : chat));
+  }
+
+  function closeAgentChat(agentId: number) {
+    setAgentChats(prev => prev.map(chat => chat.agent.id === agentId ? { ...chat, open: false } : chat));
+    if (activeAgentId === agentId) setActiveAgentId(null);
   }
 
   async function createSite(event: FormEvent<HTMLFormElement>) {
@@ -279,7 +349,10 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   }
 
   const supportUsers = users.filter(user => user.role === 'support');
-  const onlineTotal = onlineChats.length;
+  const onlineTotal = onlineAgents.length;
+  const onlineThreadIds = new Set(onlineChats.map(thread => thread.id));
+  const onlineAgentIds = new Set(onlineAgents.map(agent => agent.id));
+  const unreadAgentCounts = new Map(agentChats.map(chat => [chat.agent.id, chat.unread]));
   const quickReplies = [
     'Hello! How can I help you today?',
     'Thanks for reaching out. I am checking this for you.',
@@ -300,6 +373,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
         <p className="admin-sidebar-title">Dashboard</p>
         <NavButton icon="dashboard" active={view === 'dashboard'} onClick={() => goTo('/admin', 'dashboard')}>Default</NavButton>
         <NavButton icon="chat" active={view === 'chat'} onClick={() => goTo('/admin/chat', 'chat')}>Chat</NavButton>
+        <NavButton icon="support" active={view === 'agentChat'} onClick={() => goTo('/admin/agent-chat', 'agentChat')}>Agent Chat</NavButton>
         <NavButton icon="sites" active={view === 'sites'} onClick={() => goTo('/admin/sites', 'sites')}>Sites</NavButton>
         <NavButton icon="key" active={view === 'apiKeys'} onClick={() => goTo('/admin/api-keys', 'apiKeys')}>API Keys</NavButton>
         <NavButton icon="support" active={view === 'support'} onClick={() => goTo('/admin/support-agents', 'support')}>Support Agents</NavButton>
@@ -323,12 +397,16 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
             {onlineOpen && (
               <div className="admin-online-menu">
                 <h3>Online Now</h3>
-                <p>Active chats</p>
-                {onlineChats.length === 0 && <span className="empty-row">No active client chat.</span>}
-                {onlineChats.map(thread => (
-                  <button key={thread.id} onClick={() => openThreadFromOnline(thread)}>
-                    <strong>{thread.visitorName || 'Guest'}</strong>
-                    <small>{thread.Site?.name || 'Unknown site'}</small>
+                <p>Support agents</p>
+                {supportUsers.length === 0 && <span className="empty-row">No support agent found.</span>}
+                {supportUsers.map(agent => (
+                  <button className="online-menu-row" key={agent.id} onClick={() => openAgentChat(agent)}>
+                    <strong>
+                      {agent.name}
+                      {onlineAgentIds.has(agent.id) && <span className="online-menu-mark">Online</span>}
+                      {Number(unreadAgentCounts.get(agent.id) || 0) > 0 && <span className="online-menu-unread">{unreadAgentCounts.get(agent.id)}</span>}
+                    </strong>
+                    <small>{agent.email}</small>
                   </button>
                 ))}
               </div>
@@ -423,10 +501,11 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
               <div className="admin-thread-list">
                 {threads.length === 0 && <div className="admin-chat-empty">No conversations yet</div>}
                 {threads.map(thread => (
-                  <button className={`admin-thread-item ${selectedThread?.id === thread.id ? 'active' : ''}`} key={thread.id} onClick={() => openThread(thread)}>
+                  <button className={`admin-thread-item ${selectedThread?.id === thread.id ? 'active' : ''} ${onlineThreadIds.has(thread.id) ? 'online' : ''}`} key={thread.id} onClick={() => openThread(thread)}>
                     <div className="admin-thread-title">
                       <span className="thread-avatar">●</span>
                       <strong>{thread.visitorName || 'Guest'}</strong>
+                      {onlineThreadIds.has(thread.id) && <span className="thread-online-mark">Online</span>}
                       <span className="thread-status">{thread.status}</span>
                     </div>
                     <p>{formatShortDate(thread.lastMessageAt)} · {thread.Site?.name || 'Unknown site'}</p>
@@ -484,6 +563,40 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
                 </div>
               </form>
             </div>
+          </div>
+        )}
+
+        {view === 'agentChat' && (
+          <div className="admin-chat-grid">
+            <div className="admin-chat-list-card">
+              <div className="admin-chat-panel-head">
+                <div>
+                  <h2><span className="chat-head-icon">●</span>Support Agents</h2>
+                  <p>{supportUsers.length} agents</p>
+                </div>
+              </div>
+              <div className="admin-thread-list">
+                {supportUsers.length === 0 && <div className="admin-chat-empty">No support agent found.</div>}
+                {supportUsers.map(agent => (
+                  <button className={`admin-thread-item ${activeAgentId === agent.id ? 'active' : ''} ${onlineAgentIds.has(agent.id) ? 'online' : ''}`} key={agent.id} onClick={() => openAgentChat(agent)}>
+                    <div className="admin-thread-title">
+                      <span className="thread-avatar">●</span>
+                      <strong>{agent.name}</strong>
+                      {onlineAgentIds.has(agent.id) && <span className="thread-online-mark">Online</span>}
+                    </div>
+                    <p>{agent.email}</p>
+                    <small>{agent.siteId ? `Site #${agent.siteId}` : 'No site assigned'}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <AgentChatRoom
+              activeChat={agentChats.find(chat => chat.agent.id === activeAgentId)}
+              onlineAgentIds={onlineAgentIds}
+              onDraftChange={updateAgentDraft}
+              onSend={sendAgentMessage}
+            />
           </div>
         )}
 
@@ -554,7 +667,43 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
             </form>
           </div>
         )}
+
       </main>
+    </div>
+  );
+}
+
+function AgentChatRoom({ activeChat, onlineAgentIds, onDraftChange, onSend }: { activeChat?: AgentChatSession; onlineAgentIds: Set<number>; onDraftChange: (agentId: number, draft: string) => void; onSend: (event: FormEvent<HTMLFormElement>, agentId: number) => void }) {
+  return (
+    <div className="admin-chat-room-card">
+      <div className="admin-chat-panel-head chat-room-head">
+        <div>
+          <h2><span className="chat-head-icon">●</span>{activeChat ? `Chatting with ${activeChat.agent.name}` : 'Select an agent'}</h2>
+          <p>{activeChat ? (onlineAgentIds.has(activeChat.agent.id) ? 'Online now' : 'Offline') : 'Please select agent to start the chat'}</p>
+        </div>
+      </div>
+      <div className="admin-messages">
+        {!activeChat && (
+          <div className="admin-chat-placeholder">
+            <span>□</span>
+            <p>Please select agent to start the chat</p>
+          </div>
+        )}
+        {activeChat?.messages.map(message => (
+          <div className={`admin-message-row ${message.sender === 'admin' ? 'sent' : 'received'}`} key={message.id}>
+            <div className="admin-message">
+              <div>{message.message}</div>
+              <time>{formatMessageTime(message.createdAt)}</time>
+            </div>
+          </div>
+        ))}
+      </div>
+      <form className="admin-chat-composer" onSubmit={event => activeChat && onSend(event, activeChat.agent.id)}>
+        <div className="admin-send">
+          <input value={activeChat?.draft || ''} onChange={event => activeChat && onDraftChange(activeChat.agent.id, event.target.value)} placeholder="Type your message..." disabled={!activeChat} />
+          <button disabled={!activeChat || !activeChat.draft.trim()}>Send</button>
+        </div>
+      </form>
     </div>
   );
 }

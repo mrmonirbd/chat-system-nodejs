@@ -17,6 +17,7 @@ export type RoutePath =
   | '/admin'
   | '/admin/analytics'
   | '/admin/chat'
+  | '/admin/agent-chat'
   | '/admin/sites'
   | '/admin/support-agents'
   | '/admin/api-keys'
@@ -33,6 +34,7 @@ const pageTitles: Record<RoutePath, string> = {
   '/admin': 'Admin Panel | Chat System',
   '/admin/analytics': 'Analytics | Chat System',
   '/admin/chat': 'Admin Chat | Chat System',
+  '/admin/agent-chat': 'Agent Chat | Chat System',
   '/admin/sites': 'Sites | Chat System',
   '/admin/support-agents': 'Support Agents | Chat System',
   '/admin/api-keys': 'API Keys | Chat System',
@@ -50,6 +52,7 @@ const validRoutes: RoutePath[] = [
   '/admin',
   '/admin/analytics',
   '/admin/chat',
+  '/admin/agent-chat',
   '/admin/sites',
   '/admin/support-agents',
   '/admin/api-keys',
@@ -68,6 +71,7 @@ function getRoutePath(): RoutePath {
 
 function getAdminView(route: RoutePath) {
   if (route === '/admin/chat') return 'chat' as const;
+  if (route === '/admin/agent-chat') return 'agentChat' as const;
   if (route === '/admin/sites') return 'sites' as const;
   if (route === '/admin/support-agents') return 'support' as const;
   if (route === '/admin/api-keys') return 'apiKeys' as const;
@@ -114,6 +118,7 @@ export default function App() {
     case '/admin':
     case '/admin/analytics':
     case '/admin/chat':
+    case '/admin/agent-chat':
     case '/admin/sites':
     case '/admin/support-agents':
     case '/admin/api-keys':

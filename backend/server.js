@@ -1165,6 +1165,9 @@ app.get('/admin/analytics', (req, res) => {
 app.get('/admin/chat', (req, res) => {
   sendFrontendApp(res);
 });
+app.get('/admin/agent-chat', (req, res) => {
+  sendFrontendApp(res);
+});
 app.get('/admin/sites', (req, res) => {
   sendFrontendApp(res);
 });
