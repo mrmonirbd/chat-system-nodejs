@@ -6,6 +6,7 @@ import { ContactPage } from './pages/ContactPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { PrivacyPage } from './pages/PrivacyPage';
+import { SupportPanelPage } from './pages/SupportPanelPage';
 import { TermsPage } from './pages/TermsPage';
 
 export type RoutePath =
@@ -22,6 +23,8 @@ export type RoutePath =
   | '/admin/support-agents'
   | '/admin/api-keys'
   | '/admin/users'
+  | '/support-panel'
+  | '/support-panel/agent-chat'
   | '/terms'
   | '/privacy';
 
@@ -39,6 +42,8 @@ const pageTitles: Record<RoutePath, string> = {
   '/admin/support-agents': 'Support Agents | Chat System',
   '/admin/api-keys': 'API Keys | Chat System',
   '/admin/users': 'Users | Chat System',
+  '/support-panel': 'Support Panel | Chat System',
+  '/support-panel/agent-chat': 'Agent Chat | Chat System',
   '/terms': 'Terms | Chat System',
   '/privacy': 'Privacy Policy | Chat System'
 };
@@ -57,6 +62,8 @@ const validRoutes: RoutePath[] = [
   '/admin/support-agents',
   '/admin/api-keys',
   '/admin/users',
+  '/support-panel',
+  '/support-panel/agent-chat',
   '/terms',
   '/privacy'
 ];
@@ -77,6 +84,11 @@ function getAdminView(route: RoutePath) {
   if (route === '/admin/api-keys') return 'apiKeys' as const;
   if (route === '/admin/users') return 'users' as const;
   return 'dashboard' as const;
+}
+
+function getSupportView(route: RoutePath) {
+  if (route === '/support-panel/agent-chat') return 'agentChat' as const;
+  return 'chat' as const;
 }
 
 export default function App() {
@@ -124,6 +136,9 @@ export default function App() {
     case '/admin/api-keys':
     case '/admin/users':
       return <AdminPage initialView={getAdminView(route)} navigate={navigate} />;
+    case '/support-panel':
+    case '/support-panel/agent-chat':
+      return <SupportPanelPage initialView={getSupportView(route)} navigate={navigate} />;
     case '/terms':
       return <TermsPage navigate={navigate} currentRoute={route} />;
     case '/privacy':

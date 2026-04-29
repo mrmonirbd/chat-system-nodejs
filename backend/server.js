@@ -1342,10 +1342,10 @@ app.get('/dashboard', (req, res) => {
   res.redirect('/admin');
 });
 app.get('/support-panel', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/admin-panel/support-panel.html'));
+  sendFrontendApp(res);
 });
 app.get('/support-panel/agent-chat', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/admin-panel/support-panel.html'));
+  sendFrontendApp(res);
 });
 app.get('/widget.js', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/widget.js'));
