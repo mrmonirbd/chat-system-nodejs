@@ -15,6 +15,7 @@ const next = require('next');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
+app.set('trust proxy', true);
 const server = http.createServer(app);
 const frontendDir = path.join(__dirname, '../frontend');
 const nextApp = next({
@@ -179,8 +180,17 @@ const securityEvents = [];
 const suspiciousPathPattern = /(\.env|wp-admin|wp-login|phpmyadmin|adminer|\/etc\/passwd|select\s+.*from|union\s+select|<script|%3cscript|eval\(|\.\.\/|\/\.git|config\.php)/i;
 
 function getClientIp(req) {
-  const forwardedFor = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  return forwardedFor || req.socket.remoteAddress || req.ip || 'unknown';
+  const headerIp = [
+    req.headers['cf-connecting-ip'],
+    req.headers['x-real-ip'],
+    req.headers['x-client-ip'],
+    String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+  ].find(Boolean);
+  const rawIp = String(headerIp || req.socket.remoteAddress || req.ip || 'unknown').trim();
+
+  if (rawIp === '::1') return '127.0.0.1';
+  if (rawIp.startsWith('::ffff:')) return rawIp.replace('::ffff:', '');
+  return rawIp;
 }
 
 function shouldTrackSecurityRequest(req) {
@@ -208,27 +218,62 @@ function buildSecurityDailySeries(days, predicate) {
   return buildDailySeries(days, Array.from(counts.entries()).map(([date, count]) => ({ date, count })));
 }
 
-function getSecuritySummary(days) {
+async function buildSecurityDbDailySeries(days, where) {
+  const rows = await SecurityEvent.findAll({
+    attributes: [
+      [sequelize.fn('DATE', sequelize.col('createdAt')), 'date'],
+      [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+    ],
+    where,
+    group: [sequelize.fn('DATE', sequelize.col('createdAt'))],
+    order: [[sequelize.fn('DATE', sequelize.col('createdAt')), 'ASC']],
+    raw: true
+  });
+
+  return buildDailySeries(days, rows);
+}
+
+async function getSecuritySummary(days) {
   const since = new Date();
   since.setHours(0, 0, 0, 0);
   since.setDate(since.getDate() - (days - 1));
 
-  const lastMinute = Date.now() - 60000;
-  const rangedEvents = securityEvents.filter(event => event.createdAt >= since);
-  const recentEvents = securityEvents.filter(event => event.createdAt.getTime() >= lastMinute);
-  const recentByIp = new Map();
+  const lastMinute = new Date(Date.now() - 60000);
+  const rangedWhere = { createdAt: { [Op.gte]: since } };
+  const [requestsPerMinute, failedLogins, successLogins, suspiciousRequests, errorEvents, recentIpRows, latestRiskRows, requestSeries, failedSeries, successSeries, suspiciousSeries] = await Promise.all([
+    SecurityEvent.count({ where: { createdAt: { [Op.gte]: lastMinute } } }),
+    SecurityEvent.count({ where: { ...rangedWhere, failedLogin: true } }),
+    SecurityEvent.count({ where: { ...rangedWhere, successLogin: true } }),
+    SecurityEvent.count({ where: { ...rangedWhere, suspicious: true } }),
+    SecurityEvent.count({ where: { ...rangedWhere, status: { [Op.gte]: 500 } } }),
+    SecurityEvent.findAll({
+      attributes: ['ip', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+      where: { createdAt: { [Op.gte]: lastMinute } },
+      group: ['ip'],
+      raw: true
+    }),
+    SecurityEvent.findAll({
+      where: {
+        createdAt: { [Op.gte]: since },
+        [Op.or]: [
+          { suspicious: true },
+          { failedLogin: true },
+          { status: { [Op.gte]: 400 } }
+        ]
+      },
+      order: [['createdAt', 'DESC']],
+      limit: 200,
+      raw: true
+    }),
+    buildSecurityDbDailySeries(days, rangedWhere),
+    buildSecurityDbDailySeries(days, { ...rangedWhere, failedLogin: true }),
+    buildSecurityDbDailySeries(days, { ...rangedWhere, successLogin: true }),
+    buildSecurityDbDailySeries(days, { ...rangedWhere, suspicious: true })
+  ]);
 
-  recentEvents.forEach(event => {
-    recentByIp.set(event.ip, (recentByIp.get(event.ip) || 0) + 1);
-  });
-
-  const suspiciousEvents = rangedEvents.filter(event => event.suspicious);
-  const failedLoginEvents = rangedEvents.filter(event => event.failedLogin);
-  const errorEvents = rangedEvents.filter(event => event.status >= 500);
   const topIpMap = new Map();
 
-  rangedEvents.forEach(event => {
-    if (!event.suspicious && !event.failedLogin && event.status < 400) return;
+  latestRiskRows.forEach(event => {
     const current = topIpMap.get(event.ip) || {
       ip: event.ip,
       count: 0,
@@ -238,29 +283,28 @@ function getSecuritySummary(days) {
     };
     current.count += 1;
     if (event.failedLogin) current.failedLogins += 1;
-    if (event.createdAt >= current.lastSeen) {
-      current.lastPath = event.path;
-      current.lastSeen = event.createdAt;
-    }
     topIpMap.set(event.ip, current);
   });
 
-  const maxSingleIpMinute = Math.max(...recentByIp.values(), 0);
-  const requestsPerMinute = recentEvents.length;
+  const maxSingleIpMinute = Math.max(...recentIpRows.map(row => Number(row.count || 0)), 0);
   const ddosScore = Math.min(100, Math.round((requestsPerMinute / 200) * 60 + (maxSingleIpMinute / 80) * 40));
+  const totalLoginAttempts = failedLogins + successLogins;
 
   return {
     totals: {
       requestsPerMinute,
-      failedLogins: failedLoginEvents.length,
-      suspiciousRequests: suspiciousEvents.length,
-      errorRate: rangedEvents.length ? Math.round((errorEvents.length / rangedEvents.length) * 100) : 0,
-      ddosScore
+      failedLogins,
+      successLogins,
+      suspiciousRequests,
+      errorRate: requestSeries.data.reduce((total, value) => total + value, 0) ? Math.round((errorEvents / requestSeries.data.reduce((total, value) => total + value, 0)) * 100) : 0,
+      ddosScore,
+      loginSuccessRate: totalLoginAttempts ? Math.round((successLogins / totalLoginAttempts) * 100) : 0
     },
     charts: {
-      requests: buildSecurityDailySeries(days, event => event.createdAt >= since),
-      failedLogins: buildSecurityDailySeries(days, event => event.createdAt >= since && event.failedLogin),
-      suspiciousRequests: buildSecurityDailySeries(days, event => event.createdAt >= since && event.suspicious)
+      requests: requestSeries,
+      failedLogins: failedSeries,
+      successLogins: successSeries,
+      suspiciousRequests: suspiciousSeries
     },
     topSuspiciousIps: Array.from(topIpMap.values())
       .sort((a, b) => b.count - a.count)
@@ -275,20 +319,41 @@ function getSecuritySummary(days) {
 app.use((req, res, next) => {
   const startedAt = Date.now();
 
-  res.on('finish', () => {
+  res.on('finish', async () => {
     if (!shouldTrackSecurityRequest(req)) return;
 
     const pathName = req.originalUrl || req.url || '';
-    pushSecurityEvent({
+    const event = {
       createdAt: new Date(),
       ip: getClientIp(req),
       method: req.method,
       path: pathName.slice(0, 160),
       status: res.statusCode,
       durationMs: Date.now() - startedAt,
+      email: req.path === '/api/auth/login' ? String(req.body?.email || '').trim().toLowerCase().slice(0, 191) : null,
+      userAgent: String(req.headers['user-agent'] || '').slice(0, 255),
       suspicious: suspiciousPathPattern.test(pathName),
-      failedLogin: req.path === '/api/auth/login' && res.statusCode === 401
-    });
+      failedLogin: req.path === '/api/auth/login' && res.statusCode === 401,
+      successLogin: req.path === '/api/auth/login' && res.statusCode >= 200 && res.statusCode < 300
+    };
+
+    pushSecurityEvent(event);
+
+    try {
+      await SecurityEvent.create(event);
+    } catch (err) {
+      console.error('Security event save error:', err.message);
+    }
+
+    if (event.failedLogin || event.successLogin || event.suspicious || event.status >= 500) {
+      io.emit('security-metrics-updated', {
+        path: event.path,
+        status: event.status,
+        failedLogin: event.failedLogin,
+        successLogin: event.successLogin,
+        suspicious: event.suspicious
+      });
+    }
   });
 
   next();
@@ -437,6 +502,29 @@ const InternalChatMessage = sequelize.define('InternalChatMessage', {
   readAt: { type: DataTypes.DATE, allowNull: true }
 }, { timestamps: true });
 
+const SecurityEvent = sequelize.define('SecurityEvent', {
+  id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+  ip: { type: DataTypes.STRING(64), allowNull: false },
+  method: { type: DataTypes.STRING(12), allowNull: false },
+  path: { type: DataTypes.STRING(191), allowNull: false },
+  status: { type: DataTypes.INTEGER, allowNull: false },
+  durationMs: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  email: { type: DataTypes.STRING(191), allowNull: true },
+  userAgent: { type: DataTypes.STRING(255), allowNull: true },
+  suspicious: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  failedLogin: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  successLogin: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }
+}, {
+  timestamps: true,
+  indexes: [
+    { fields: ['createdAt'] },
+    { fields: ['ip'] },
+    { fields: ['failedLogin'] },
+    { fields: ['successLogin'] },
+    { fields: ['suspicious'] }
+  ]
+});
+
 // ========== RELATIONSHIPS ==========
 Site.hasMany(User, { foreignKey: 'siteId' });
 User.belongsTo(Site, { foreignKey: 'siteId' });
@@ -478,6 +566,12 @@ InternalChatMessage.sync().then(() => {
   console.log(' Internal chat message table ready');
 }).catch(err => {
   console.error(' Internal chat message table sync error:', err);
+});
+
+SecurityEvent.sync().then(() => {
+  console.log(' Security event table ready');
+}).catch(err => {
+  console.error(' Security event table sync error:', err);
 });
 
 // ========== MIDDLEWARE ==========
@@ -1059,7 +1153,7 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
     const since = new Date();
     since.setHours(0, 0, 0, 0);
     since.setDate(since.getDate() - (days - 1));
-    const securitySummary = getSecuritySummary(days);
+    const securitySummary = await getSecuritySummary(days);
 
     const dateExpr = sequelize.fn('DATE', sequelize.col('createdAt'));
     const countExpr = sequelize.fn('COUNT', sequelize.col('id'));
@@ -1150,6 +1244,7 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
         supportAgents: buildCumulativeDailySeries(days, supportRows, supportBaseline),
         securityRequests: securitySummary.charts.requests,
         failedLogins: securitySummary.charts.failedLogins,
+        successLogins: securitySummary.charts.successLogins,
         suspiciousRequests: securitySummary.charts.suspiciousRequests
       },
       security: {

@@ -29,9 +29,11 @@ type Analytics = {
     supportAgents: number;
     requestsPerMinute: number;
     failedLogins: number;
+    successLogins: number;
     suspiciousRequests: number;
     errorRate: number;
     ddosScore: number;
+    loginSuccessRate: number;
   };
   charts?: {
     messages?: ChartSeries;
@@ -42,6 +44,7 @@ type Analytics = {
     supportAgents?: ChartSeries;
     securityRequests?: ChartSeries;
     failedLogins?: ChartSeries;
+    successLogins?: ChartSeries;
     suspiciousRequests?: ChartSeries;
   };
   security?: {
@@ -244,6 +247,12 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
       });
       socket.on('new-thread', () => loadAll());
       socket.on('new-thread-message', () => loadAll());
+      socket.on('security-metrics-updated', payload => {
+        const data = payload as { path?: string; failedLogin?: boolean; successLogin?: boolean; suspicious?: boolean };
+        if (data.failedLogin || data.successLogin || data.suspicious || data.path?.startsWith('/api/auth/login')) {
+          loadAll();
+        }
+      });
       socket.on('agent-admin-message', payload => {
         const data = payload as { id: number; fromSupportId: number; fromSupportName: string; fromSupportEmail?: string; siteId?: number | null; message: string; unreadCount?: number; createdAt: string };
         const relatedChatOpen = activeAgentIdRef.current === data.fromSupportId && viewRef.current === 'agentChat';
@@ -604,6 +613,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
               <MetricCard label="Total Site" value={analytics?.totals.totalSites || 0} delta={`${analytics?.totals.connectedSites || 0}`} note="Connected sites now" trend="up" />
               <MetricCard label="Requests/min" value={analytics?.totals.requestsPerMinute || 0} delta={`${analytics?.totals.ddosScore || 0}%`} note="DDoS risk score" trend={(analytics?.totals.ddosScore || 0) > 70 ? 'down' : 'up'} />
               <MetricCard label="Failed Login" value={analytics?.totals.failedLogins || 0} delta={`${analytics?.totals.suspiciousRequests || 0}`} note="Suspicious requests" trend={(analytics?.totals.failedLogins || 0) > 0 ? 'down' : 'up'} />
+              <MetricCard label="Login Success" value={`${analytics?.totals.loginSuccessRate || 0}%`} delta={`${analytics?.totals.successLogins || 0}`} note="Successful login attempts" trend="up" />
               <MetricCard label="Error Rate" value={`${analytics?.totals.errorRate || 0}%`} delta={`${analytics?.totals.errorRate || 0}%`} note="Server 5xx response rate" trend={(analytics?.totals.errorRate || 0) > 10 ? 'down' : 'up'} />
             </div>
 
@@ -646,7 +656,9 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
               <MultiWaveChart
                 title="Failed Login"
                 primary={analytics?.charts?.failedLogins}
+                secondary={analytics?.charts?.successLogins}
                 primaryLabel="Failed"
+                secondaryLabel="Success"
                 total={analytics?.totals.failedLogins || 0}
               />
             </div>
