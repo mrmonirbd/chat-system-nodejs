@@ -1,0 +1,271 @@
+.admin-shell {
+    min-height: calc(100vh - 142px);
+    background: #f3f4f6;
+    display: grid;
+    grid-template-columns: 288px 1fr;
+}
+
+.admin-sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    background: #1e293b;
+    color: #fff;
+    padding: 18px 16px;
+    overflow-y: auto;
+}
+
+.admin-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    padding: 4px 6px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+}
+
+.admin-brand-icon {
+    color: #60a5fa;
+}
+
+.admin-sidebar-title {
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 22px 8px 8px;
+}
+
+.admin-sidebar button {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: #cbd5e1;
+    display: flex;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.admin-sidebar button:hover,
+.admin-sidebar button.active {
+    background: #2563eb;
+    color: #fff;
+}
+
+.admin-main {
+    padding: 24px;
+    min-width: 0;
+}
+
+.admin-topbar,
+.admin-panel-card,
+.admin-metric {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.admin-topbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    align-items: center;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+}
+
+.admin-topbar h1 {
+    font-size: 26px;
+    margin: 0;
+    color: #1f2937;
+}
+
+.admin-topbar p,
+.muted {
+    color: #6b7280;
+}
+
+.admin-online,
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #16a34a;
+    font-weight: 800;
+    font-size: 13px;
+}
+
+.admin-live-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 0 6px rgba(34,197,94,0.12);
+}
+
+.admin-alert {
+    background: #fee2e2;
+    color: #991b1b;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-weight: 800;
+    margin-bottom: 16px;
+}
+
+.admin-card-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.admin-metric {
+    padding: 20px;
+}
+
+.admin-metric p {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.admin-metric strong {
+    display: block;
+    color: #1f2937;
+    font-size: 30px;
+    margin-top: 6px;
+}
+
+.admin-metric span {
+    display: block;
+    color: #2563eb;
+    font-size: 13px;
+    font-weight: 800;
+    margin-top: 8px;
+}
+
+.admin-panel-card {
+    padding: 20px;
+}
+
+.admin-panel-card h2 {
+    font-size: 18px;
+    margin-bottom: 14px;
+}
+
+.admin-list-row,
+.thread-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 0;
+    border: 0;
+    border-bottom: 1px solid #eef2f7;
+    background: transparent;
+    text-align: left;
+}
+
+.admin-list-row small,
+.thread-row span {
+    display: block;
+    color: #6b7280;
+    margin-top: 3px;
+}
+
+.admin-chat-grid,
+.admin-two-col {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 20px;
+}
+
+.chat-box {
+    min-height: 620px;
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-messages {
+    flex: 1;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.admin-message {
+    max-width: 72%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    background: #e5e7eb;
+}
+
+.admin-message.sent {
+    margin-left: auto;
+    background: #2563eb;
+    color: #fff;
+}
+
+.admin-send {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.admin-form {
+    display: grid;
+    gap: 12px;
+}
+
+.admin-form button,
+.admin-send button {
+    border: 0;
+    background: #2563eb;
+    color: #fff;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-weight: 900;
+}
+
+.table-card {
+    overflow-x: auto;
+}
+
+.table-card table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.table-card th {
+    text-align: left;
+    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 10px;
+}
+
+.table-card td {
+    border-bottom: 1px solid #eef2f7;
+    padding: 12px 10px;
+    color: #374151;
+}
+
+@media (max-width: 960px) {
+    .admin-shell,
+    .admin-chat-grid,
+    .admin-two-col,
+    .admin-card-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-sidebar {
+        position: static;
+        height: auto;
+    }
+}

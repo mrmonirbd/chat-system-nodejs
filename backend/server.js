@@ -1025,6 +1025,67 @@ app.get('/api/admin/threads', authMiddleware, async (req, res) => {
   }
 });
 
+app.post('/api/admin/threads/:threadId/messages', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    const threadIdNum = parseInt(req.params.threadId, 10);
+    const message = String(req.body.message || '').trim();
+    if (!threadIdNum || !message) return res.status(400).json({ error: 'Thread and message are required' });
+
+    const thread = await Thread.findByPk(threadIdNum);
+    if (!thread) return res.status(404).json({ error: 'Thread not found' });
+
+    const newMessage = await Message.create({
+      threadId: threadIdNum,
+      sender: 'support',
+      senderId: String(req.user.id),
+      message
+    });
+
+    await Thread.update({ lastMessageAt: new Date(), status: 'open' }, { where: { id: threadIdNum } });
+    await emitTotalMessageCount();
+
+    const messageData = {
+      id: newMessage.id,
+      threadId: newMessage.threadId,
+      sender: newMessage.sender,
+      senderId: newMessage.senderId,
+      message: newMessage.message,
+      createdAt: newMessage.createdAt
+    };
+
+    io.to(`thread-${threadIdNum}`).emit('new-message', messageData);
+    if (thread.siteId) io.to(`site-${thread.siteId}`).emit('new-thread-message', { threadId: threadIdNum, message: messageData, thread });
+
+    res.json(messageData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/online-agents', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    const agents = [];
+    for (const [siteId, siteSupport] of onlineSupportBySite.entries()) {
+      for (const supportInfo of siteSupport.values()) {
+        agents.push({
+          id: supportInfo.id,
+          name: supportInfo.name,
+          siteId,
+          socketCount: supportInfo.sockets.size
+        });
+      }
+    }
+
+    res.json(agents);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get Messages by Thread
 app.get('/api/threads/:threadId/messages', async (req, res) => {
   try {
@@ -1058,7 +1119,7 @@ app.get('/privacy', (req, res) => {
   sendFrontendApp(res);
 });
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/admin-panel/index.html'));
+  sendFrontendApp(res);
 });
 app.get('/dashboard', (req, res) => {
   res.redirect('/admin');

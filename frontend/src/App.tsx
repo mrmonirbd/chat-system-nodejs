@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
+import { Layout } from './components/Layout';
 import { AboutPage } from './pages/AboutPage';
+import { AdminPage } from './pages/AdminPage';
 import { ContactPage } from './pages/ContactPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
 
-export type RoutePath = '/' | '/about' | '/contact' | '/login' | '/reset-password' | '/terms' | '/privacy';
+export type RoutePath = '/' | '/about' | '/contact' | '/login' | '/reset-password' | '/admin' | '/terms' | '/privacy';
 
 const pageTitles: Record<RoutePath, string> = {
   '/': 'Chat System | Live Support for Growing Teams',
@@ -14,13 +16,14 @@ const pageTitles: Record<RoutePath, string> = {
   '/contact': 'Contact Us | Chat System',
   '/login': 'Login | Chat System',
   '/reset-password': 'Reset Password | Chat System',
+  '/admin': 'Admin Panel | Chat System',
   '/terms': 'Terms | Chat System',
   '/privacy': 'Privacy Policy | Chat System'
 };
 
 function getRoutePath(): RoutePath {
   const path = window.location.pathname;
-  if (path === '/about' || path === '/contact' || path === '/login' || path === '/reset-password' || path === '/terms' || path === '/privacy') {
+  if (path === '/about' || path === '/contact' || path === '/login' || path === '/reset-password' || path === '/admin' || path === '/terms' || path === '/privacy') {
     return path;
   }
   return '/';
@@ -46,7 +49,7 @@ export default function App() {
       return;
     }
 
-    const nextRoute = (['/', '/about', '/contact', '/login', '/reset-password', '/terms', '/privacy'].includes(path) ? path : '/') as RoutePath;
+    const nextRoute = (['/', '/about', '/contact', '/login', '/reset-password', '/admin', '/terms', '/privacy'].includes(path) ? path : '/') as RoutePath;
     if (window.location.pathname !== nextRoute) {
       window.history.pushState({}, '', nextRoute);
     }
@@ -59,9 +62,11 @@ export default function App() {
     case '/contact':
       return <ContactPage navigate={navigate} currentRoute={route} />;
     case '/login':
-      return <LoginPage navigate={navigate} />;
+      return <Layout navigate={navigate} currentRoute={route}><LoginPage navigate={navigate} /></Layout>;
     case '/reset-password':
-      return <LoginPage navigate={navigate} />;
+      return <Layout navigate={navigate} currentRoute={route}><LoginPage navigate={navigate} /></Layout>;
+    case '/admin':
+      return <Layout navigate={navigate} currentRoute={route}><AdminPage /></Layout>;
     case '/terms':
       return <TermsPage navigate={navigate} currentRoute={route} />;
     case '/privacy':
