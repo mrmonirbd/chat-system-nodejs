@@ -30,6 +30,8 @@ type Analytics = {
   };
   charts?: {
     messages?: ChartSeries;
+    customerMessages?: ChartSeries;
+    agentMessages?: ChartSeries;
     sites?: ChartSeries;
     supportAgents?: ChartSeries;
   };
@@ -584,11 +586,11 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
 
             <div className="admin-dashboard-charts">
               <MultiWaveChart
-                title="Live Message Curve"
-                primary={analytics?.charts?.messages}
-                secondary={analytics?.charts?.sites}
-                primaryLabel="Messages"
-                secondaryLabel="Sites"
+                title="Live Message Status"
+                primary={analytics?.charts?.customerMessages}
+                secondary={analytics?.charts?.agentMessages}
+                primaryLabel="Customers"
+                secondaryLabel="Agents"
               />
               <MultiWaveChart
                 title="Total Chat"

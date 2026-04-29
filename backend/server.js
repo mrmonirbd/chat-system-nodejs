@@ -943,7 +943,18 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
     const dateExpr = sequelize.fn('DATE', sequelize.col('createdAt'));
     const countExpr = sequelize.fn('COUNT', sequelize.col('id'));
 
-    const [totalSites, supportAgents, totalMessages, siteBaseline, supportBaseline, messageRows, siteRows, supportRows] = await Promise.all([
+    const [
+      totalSites,
+      supportAgents,
+      totalMessages,
+      siteBaseline,
+      supportBaseline,
+      messageRows,
+      customerMessageRows,
+      agentMessageRows,
+      siteRows,
+      supportRows
+    ] = await Promise.all([
       Site.count(),
       User.count({ where: { role: 'support' } }),
       Message.count(),
@@ -952,6 +963,26 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
       Message.findAll({
         attributes: [[dateExpr, 'date'], [countExpr, 'count']],
         where: { createdAt: { [Op.gte]: since } },
+        group: [dateExpr],
+        order: [[dateExpr, 'ASC']],
+        raw: true
+      }),
+      Message.findAll({
+        attributes: [[dateExpr, 'date'], [countExpr, 'count']],
+        where: {
+          sender: 'visitor',
+          createdAt: { [Op.gte]: since }
+        },
+        group: [dateExpr],
+        order: [[dateExpr, 'ASC']],
+        raw: true
+      }),
+      Message.findAll({
+        attributes: [[dateExpr, 'date'], [countExpr, 'count']],
+        where: {
+          sender: 'support',
+          createdAt: { [Op.gte]: since }
+        },
         group: [dateExpr],
         order: [[dateExpr, 'ASC']],
         raw: true
@@ -990,6 +1021,8 @@ app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
       },
       charts: {
         messages: buildDailySeries(days, messageRows),
+        customerMessages: buildDailySeries(days, customerMessageRows),
+        agentMessages: buildDailySeries(days, agentMessageRows),
         sites: buildCumulativeDailySeries(days, siteRows, siteBaseline),
         supportAgents: buildCumulativeDailySeries(days, supportRows, supportBaseline)
       }
