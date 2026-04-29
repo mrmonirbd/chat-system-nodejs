@@ -94,6 +94,19 @@
             box-shadow: 0 16px 40px rgba(15, 23, 42, 0.16);
             z-index: 20;
         }
+        .quick-reply-tooltip {
+            position: fixed;
+            max-width: 320px;
+            background: #111827;
+            color: white;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+            z-index: 10000;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -146,12 +159,12 @@
                 <div class="p-4 border-t border-gray-200 bg-gray-50">
                     <div class="relative">
                         <div class="quick-replies-list" id="quickReplies">
-                            <button type="button" class="quick-reply-chip" onclick="toggleQuickReplySettings()" title="Manage quick replies"><i class="fas fa-cog"></i></button>
-                            <button type="button" class="quick-reply-chip" data-reply="Hello! How can I help you today?" onclick="insertQuickReply(this.dataset.reply)" disabled>Hello</button>
-                            <button type="button" class="quick-reply-chip" data-reply="Thanks for reaching out. I am checking this for you." onclick="insertQuickReply(this.dataset.reply)" disabled>Checking</button>
-                            <button type="button" class="quick-reply-chip" data-reply="Could you please share a little more detail?" onclick="insertQuickReply(this.dataset.reply)" disabled>More detail</button>
-                            <button type="button" class="quick-reply-chip" data-reply="Please wait a moment while I look into this." onclick="insertQuickReply(this.dataset.reply)" disabled>Please wait</button>
-                            <button type="button" class="quick-reply-chip" data-reply="This should be resolved now. Please check and let me know." onclick="insertQuickReply(this.dataset.reply)" disabled>Resolved</button>
+                            <button type="button" class="quick-reply-chip" onclick="toggleQuickReplySettings()" data-tooltip="Manage quick replies"><i class="fas fa-cog"></i></button>
+                            <button type="button" class="quick-reply-chip" data-reply="Hello! How can I help you today?" data-tooltip="Hello! How can I help you today?" onclick="insertQuickReply(this.dataset.reply)" disabled>Hello</button>
+                            <button type="button" class="quick-reply-chip" data-reply="Thanks for reaching out. I am checking this for you." data-tooltip="Thanks for reaching out. I am checking this for you." onclick="insertQuickReply(this.dataset.reply)" disabled>Checking</button>
+                            <button type="button" class="quick-reply-chip" data-reply="Could you please share a little more detail?" data-tooltip="Could you please share a little more detail?" onclick="insertQuickReply(this.dataset.reply)" disabled>More detail</button>
+                            <button type="button" class="quick-reply-chip" data-reply="Please wait a moment while I look into this." data-tooltip="Please wait a moment while I look into this." onclick="insertQuickReply(this.dataset.reply)" disabled>Please wait</button>
+                            <button type="button" class="quick-reply-chip" data-reply="This should be resolved now. Please check and let me know." data-tooltip="This should be resolved now. Please check and let me know." onclick="insertQuickReply(this.dataset.reply)" disabled>Resolved</button>
                             <span id="customQuickReplies" class="flex gap-2"></span>
                         </div>
                         <div id="quickReplySettings" class="quick-reply-settings hidden p-3">
