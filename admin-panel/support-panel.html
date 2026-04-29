@@ -788,7 +788,7 @@ function initSocket() {
         
         function addMessageToChat(msg) {
             const chatMessages = document.getElementById('chatMessages');
-            const isSentByMe = msg.sender === 'support' && msg.senderId === currentAgent?.id;
+            const isSentByMe = msg.sender === 'support';
             
             if (document.getElementById(`msg-${msg.id}`)) return;
             
