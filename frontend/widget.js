@@ -125,24 +125,32 @@
                     ${escapeHtml(greetingMessage)}
                 </div>
             </div>
-            <div style="display:flex; justify-content:flex-start; margin-bottom:12px;">
+            <div id="chat-availability-row" style="display:flex; justify-content:flex-start; margin-bottom:12px;">
                 <div id="chat-availability-message" style="max-width:75%; padding:10px 14px; border-radius:12px; background:#e5e7eb; color:#1f2937; word-wrap:break-word;">
                     ${escapeHtml(getAvailabilityMessage(supportAvailability))}
                 </div>
             </div>
         `;
+        updateAvailabilityMessage(supportAvailability);
     }
 
     function getAvailabilityMessage(supportAvailability) {
-        return supportAvailability?.available && supportAvailability.agentName
-            ? `${supportAvailability.agentName} is available now.`
+        return supportAvailability?.available
+            ? ''
             : 'No support agent is available right now. We will reply as soon as possible.';
     }
 
     function updateAvailabilityMessage(supportAvailability) {
+        const availabilityRow = document.getElementById('chat-availability-row');
         const availabilityDiv = document.getElementById('chat-availability-message');
-        if (availabilityDiv) {
-            availabilityDiv.textContent = getAvailabilityMessage(supportAvailability);
+        const availabilityMessage = getAvailabilityMessage(supportAvailability);
+
+        if (availabilityRow) {
+            availabilityRow.style.display = availabilityMessage ? 'flex' : 'none';
+        }
+
+        if (availabilityDiv && availabilityMessage) {
+            availabilityDiv.textContent = availabilityMessage;
         }
         updateSupportHeader(supportAvailability);
     }
