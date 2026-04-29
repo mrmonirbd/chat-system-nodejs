@@ -259,7 +259,7 @@
 
 .admin-dashboard-top {
     display: grid;
-    grid-template-columns: repeat(2, 160px) repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(2, 132px) repeat(5, minmax(0, 1fr));
     gap: 14px;
     margin-bottom: 16px;
 }
@@ -321,33 +321,38 @@
 }
 
 .admin-gauge-card {
-    padding: 14px;
+    min-height: 104px;
+    padding: 10px;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .admin-gauge-card h2 {
     color: #1f3556;
-    font-size: 13px;
-    margin: 0 0 8px;
+    font-size: 12px;
+    margin: 0 0 4px;
 }
 
 .admin-gauge-card p {
     color: #94a3b8;
-    font-size: 11px;
+    font-size: 10px;
     line-height: 1.5;
-    margin: 6px 0 0;
+    margin: 3px 0 0;
 }
 
 .admin-gauge {
-    width: 104px;
+    width: 76px;
     max-width: 100%;
     transform: rotate(-90deg);
+    align-self: center;
 }
 
 .admin-gauge circle {
     fill: none;
     stroke: #edf1f7;
-    stroke-width: 9;
+    stroke-width: 8;
     stroke-linecap: round;
 }
 
@@ -358,7 +363,7 @@
 
 .admin-gauge text {
     fill: #3b4a5e;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
     transform: rotate(90deg);
     transform-origin: 60px 60px;
