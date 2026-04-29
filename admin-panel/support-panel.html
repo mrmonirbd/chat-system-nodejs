@@ -212,6 +212,7 @@
         } else {
             verifyTokenAndLoad();
         }
+        setupDelayedTooltips();
         
         function showLoginModal() {
             const email = prompt('📧 Support Agent Email:', '');
@@ -519,8 +520,52 @@ function initSocket() {
             if (!customQuickRepliesEl) return;
 
             customQuickRepliesEl.innerHTML = customQuickReplyItems.map((reply) => `
-                <button type="button" class="quick-reply-chip custom-quick-reply" data-reply="${escapeHtml(reply.text)}" onclick="insertQuickReply(this.dataset.reply)" ${currentThreadId ? '' : 'disabled'}>${escapeHtml(reply.text.substring(0, 24))}${reply.text.length > 24 ? '...' : ''}</button>
+                <button type="button" class="quick-reply-chip custom-quick-reply" data-reply="${escapeHtml(reply.text)}" data-tooltip="${escapeHtml(reply.text)}" onclick="insertQuickReply(this.dataset.reply)" ${currentThreadId ? '' : 'disabled'}>${escapeHtml(reply.text.substring(0, 24))}${reply.text.length > 24 ? '...' : ''}</button>
             `).join('');
+        }
+
+        function setupDelayedTooltips() {
+            let tooltipTimer = null;
+            let tooltipEl = null;
+
+            document.addEventListener('mouseover', (event) => {
+                const target = event.target.closest('[data-tooltip]');
+                if (!target || target.disabled) return;
+
+                clearTimeout(tooltipTimer);
+                tooltipTimer = setTimeout(() => {
+                    removeTooltip();
+
+                    tooltipEl = document.createElement('div');
+                    tooltipEl.className = 'quick-reply-tooltip';
+                    tooltipEl.textContent = target.dataset.tooltip;
+                    document.body.appendChild(tooltipEl);
+
+                    const rect = target.getBoundingClientRect();
+                    const tooltipRect = tooltipEl.getBoundingClientRect();
+                    const left = Math.min(
+                        Math.max(12, rect.left),
+                        window.innerWidth - tooltipRect.width - 12
+                    );
+                    const top = Math.max(12, rect.top - tooltipRect.height - 8);
+
+                    tooltipEl.style.left = `${left}px`;
+                    tooltipEl.style.top = `${top}px`;
+                }, 3000);
+            });
+
+            document.addEventListener('mouseout', (event) => {
+                if (!event.target.closest('[data-tooltip]')) return;
+                clearTimeout(tooltipTimer);
+                removeTooltip();
+            });
+
+            function removeTooltip() {
+                if (tooltipEl) {
+                    tooltipEl.remove();
+                    tooltipEl = null;
+                }
+            }
         }
 
         function renderQuickReplySettings() {
