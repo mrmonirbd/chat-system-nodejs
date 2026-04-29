@@ -434,6 +434,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     const chatUnread = agentChats.find(chat => chat.agent.id === agentId)?.unread || 0;
     return Math.max(chatUnread, Number(agentUnreadCounts[agentId] || 0));
   }
+  const totalAgentUnread = supportUsers.reduce((total, agent) => total + getAgentUnread(agent.id), 0);
   const quickReplies = [
     'Hello! How can I help you today?',
     'Thanks for reaching out. I am checking this for you.',
@@ -484,7 +485,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
         <p className="admin-sidebar-title">Dashboard</p>
         <NavButton icon="dashboard" active={view === 'dashboard'} onClick={() => goTo('/admin', 'dashboard')}>Default</NavButton>
         <NavButton icon="chat" active={view === 'chat'} onClick={() => goTo('/admin/chat', 'chat')}>Chat</NavButton>
-        <NavButton icon="support" active={view === 'agentChat'} onClick={() => goTo('/admin/agent-chat', 'agentChat')}>Agent Chat</NavButton>
+        <NavButton icon="support" active={view === 'agentChat'} badge={totalAgentUnread} onClick={() => goTo('/admin/agent-chat', 'agentChat')}>Agent Chat</NavButton>
         <NavButton icon="sites" active={view === 'sites'} onClick={() => goTo('/admin/sites', 'sites')}>Sites</NavButton>
         <NavButton icon="key" active={view === 'apiKeys'} onClick={() => goTo('/admin/api-keys', 'apiKeys')}>API Keys</NavButton>
         <NavButton icon="support" active={view === 'support'} onClick={() => goTo('/admin/support-agents', 'support')}>Support Agents</NavButton>
@@ -520,7 +521,7 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
                     <strong>
                       {agent.name}
                       {onlineAgentIds.has(agent.id) && <span className="online-menu-mark">Online</span>}
-                      {getAgentUnread(agent.id) > 0 && <span className="online-menu-unread">{getAgentUnread(agent.id)}</span>}
+                      {getAgentUnread(agent.id) > 0 && <span className="online-menu-unread">NEW {getAgentUnread(agent.id)}</span>}
                     </strong>
                     <small>{agent.email}</small>
                   </button>
@@ -694,13 +695,13 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
               <div className="admin-thread-list">
                 {supportUsers.length === 0 && <div className="admin-chat-empty">No support agent found.</div>}
                 {supportUsers.map(agent => (
-                  <button className={`admin-thread-item ${activeAgentId === agent.id ? 'active' : ''} ${onlineAgentIds.has(agent.id) ? 'online' : ''}`} key={agent.id} onClick={() => openAgentChat(agent)}>
+                  <button className={`admin-thread-item ${activeAgentId === agent.id ? 'active' : ''} ${onlineAgentIds.has(agent.id) ? 'online' : ''} ${getAgentUnread(agent.id) > 0 ? 'has-unread' : ''}`} key={agent.id} onClick={() => openAgentChat(agent)}>
                     <div className="admin-thread-title">
                       <span className="thread-avatar">●</span>
                       <strong>{agent.name}</strong>
                       <span className="thread-status">{agent.role}</span>
                       {onlineAgentIds.has(agent.id) && <span className="thread-online-mark">Online</span>}
-                      {getAgentUnread(agent.id) > 0 && <span className="online-menu-unread">{getAgentUnread(agent.id)}</span>}
+                      {getAgentUnread(agent.id) > 0 && <span className="online-menu-unread">NEW {getAgentUnread(agent.id)}</span>}
                     </div>
                   </button>
                 ))}
@@ -825,11 +826,12 @@ function AgentChatRoom({ activeChat, onlineAgentIds, onDraftChange, onSend }: { 
   );
 }
 
-function NavButton({ icon, active = false, onClick, children }: { icon: AdminIconName; active?: boolean; onClick: () => void; children: string }) {
+function NavButton({ icon, active = false, badge = 0, onClick, children }: { icon: AdminIconName; active?: boolean; badge?: number; onClick: () => void; children: string }) {
   return (
     <button className={active ? 'active' : ''} onClick={onClick}>
       <AdminIcon name={icon} />
       <span>{children}</span>
+      {badge > 0 && <span className="admin-nav-badge">{badge}</span>}
     </button>
   );
 }

@@ -21,13 +21,19 @@
         ::-webkit-scrollbar-thumb { background: #11998e; border-radius: 10px; }
         .message-received { background: #f3f4f6; color: #1f2937; border-radius: 18px; border-bottom-left-radius: 4px; }
         .message-sent { background: #2563eb; color: white; border-radius: 18px; border-bottom-right-radius: 4px; }
-        .thread-item { transition: all 0.3s ease; cursor: pointer; }
+        .thread-item { transition: all 0.3s ease; cursor: pointer; border-left: 4px solid transparent; }
         .thread-item:hover { background: #f8fafc; transform: translateX(3px); }
         .thread-item.active { background: #eff6ff; border-left: 4px solid #2563eb; }
+        .thread-item.has-unread { background: #fffbeb; border-left-color: #f59e0b; box-shadow: inset 0 0 0 1px rgba(245, 158, 11, .22); animation: unreadThreadGlow 1.6s ease-in-out infinite; }
+        .thread-item.has-unread:hover { background: #fef3c7; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.3s ease-out; }
-        .notification-badge { background: #ef4444; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; margin-left: 8px; animation: pulse 1s infinite; }
+        .notification-badge { background: #f59e0b; color: #111827; border-radius: 999px; padding: 3px 8px; font-size: 10px; margin-left: 8px; animation: pulse 1s infinite; font-weight: 900; box-shadow: 0 6px 12px rgba(245, 158, 11, .22); }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        @keyframes unreadThreadGlow {
+            0%, 100% { box-shadow: inset 0 0 0 1px rgba(245, 158, 11, .22), 0 0 0 rgba(245, 158, 11, 0); }
+            50% { box-shadow: inset 0 0 0 1px rgba(245, 158, 11, .36), 0 8px 22px rgba(245, 158, 11, .16); }
+        }
         
         /* Thread update indicator */
         .thread-updating {
@@ -137,7 +143,8 @@
             padding: 8px;
             margin-top: 8px;
         }
-        .internal-chat-toast {
+        .internal-chat-toast,
+        .customer-chat-toast {
             position: fixed;
             top: 18px;
             right: 24px;
@@ -156,13 +163,24 @@
             cursor: pointer;
             animation: internalToastIn .28s ease-out;
         }
-        .internal-chat-toast .toast-close {
+        .customer-chat-toast {
+            top: 76px;
+            background: #f59e0b;
+            color: #111827;
+            box-shadow: 0 14px 30px rgba(245, 158, 11, 0.24);
+        }
+        .internal-chat-toast .toast-close,
+        .customer-chat-toast .toast-close {
             border-left: 1px solid rgba(255, 255, 255, .28);
             font-size: 18px;
             line-height: 1;
             padding-left: 10px;
         }
-        .internal-chat-toast.closing {
+        .customer-chat-toast .toast-close {
+            border-left-color: rgba(17, 24, 39, .22);
+        }
+        .internal-chat-toast.closing,
+        .customer-chat-toast.closing {
             animation: internalToastOut .26s ease-in forwards;
         }
         @keyframes internalToastIn {
@@ -185,7 +203,8 @@
                 transform: translateY(-8px) scale(.98);
             }
         }
-        .agent-chat-nav-badge {
+        .agent-chat-nav-badge,
+        .customer-chat-nav-badge {
             min-width: 20px;
             height: 20px;
             padding: 0 6px;
@@ -198,6 +217,9 @@
             justify-content: center;
             font-weight: 800;
             margin-left: auto;
+        }
+        .customer-chat-nav-badge {
+            background: #f59e0b;
         }
         .support-view.hidden {
             display: none;
@@ -289,6 +311,12 @@
         .admin-agent-row.online {
             border-color: #bbf7d0;
         }
+        .admin-agent-row.has-unread {
+            background: #f0fdf4;
+            border-color: #22c55e;
+            box-shadow: inset 4px 0 0 #22c55e, 0 8px 22px rgba(34, 197, 94, .12);
+            animation: agentUnreadGlow 1.6s ease-in-out infinite;
+        }
         .admin-agent-dot {
             width: 9px;
             height: 9px;
@@ -318,6 +346,10 @@
             align-items: center;
             justify-content: center;
             font-weight: 800;
+        }
+        @keyframes agentUnreadGlow {
+            0%, 100% { box-shadow: inset 4px 0 0 #22c55e, 0 0 0 rgba(34, 197, 94, 0); }
+            50% { box-shadow: inset 4px 0 0 #16a34a, 0 8px 22px rgba(34, 197, 94, .18); }
         }
         .admin-chat-head {
             padding: 16px 20px;
@@ -431,8 +463,8 @@
             </div>
             <nav class="py-6 px-4">
                 <p class="sidebar-title">Workspace</p>
-                <a href="/support-panel" id="navCustomerChat" class="sidebar-link active"><i class="fas fa-comment-dots w-5"></i><span>Chat</span></a>
-                <a href="/support-panel/agent-chat" id="navAgentChat" class="sidebar-link"><i class="fas fa-user-shield w-5"></i><span>Agent Chat</span><span class="agent-chat-nav-badge" id="adminChatBadge">0</span></a>
+                <a href="/support-panel" id="navCustomerChat" class="sidebar-link active" onclick="return navigateSupportView('chat', '/support-panel')"><i class="fas fa-comment-dots w-5"></i><span>Chat</span><span class="customer-chat-nav-badge" id="customerChatBadge">0</span></a>
+                <a href="/support-panel/agent-chat" id="navAgentChat" class="sidebar-link" onclick="return navigateSupportView('agentChat', '/support-panel/agent-chat')"><i class="fas fa-user-shield w-5"></i><span>Agent Chat</span><span class="agent-chat-nav-badge" id="adminChatBadge">0</span></a>
                 <button onclick="showProfile()" class="sidebar-link w-full text-left"><i class="fas fa-id-card w-5"></i><span>Profile</span></button>
                 <button onclick="showChangePassword()" class="sidebar-link w-full text-left"><i class="fas fa-key w-5"></i><span>Change Password</span></button>
                 <p class="sidebar-title">Navigation</p>
@@ -581,6 +613,10 @@
         <span id="internalChatToastText"></span>
         <span class="toast-close" onclick="closeInternalChatToast(event)">&times;</span>
     </button>
+    <button type="button" class="customer-chat-toast" id="customerChatToast" onclick="openCustomerToastChat()">
+        <span id="customerChatToastText"></span>
+        <span class="toast-close" onclick="closeCustomerChatToast(event)">&times;</span>
+    </button>
 
     <script>
         const API_URL = 'http://localhost:3000/api';
@@ -592,6 +628,7 @@
         let typingTimeout = null;        
         let displayedMessageIds = new Set();
         let unreadCounts = {};
+        let latestThreads = [];
         let customQuickReplyItems = [];
         let activeSupportView = 'chat';
         let adminChatUnread = 0;
@@ -603,6 +640,9 @@
         let internalToastTimer = null;
         let internalToastCloseTimer = null;
         let internalToastUserId = null;
+        let customerToastTimer = null;
+        let customerToastCloseTimer = null;
+        let customerToastThreadId = null;
         const emptyChatHtml = '<div class="text-center py-8 text-gray-400"><i class="fas fa-inbox text-4xl mb-2"></i><p>Please select chat from head to start the chat</p></div>';
         
         if (!token) {
@@ -638,6 +678,7 @@
                         currentSiteId = data.user.siteId;
                         document.getElementById('agentName').innerText = data.user.name;
                         document.getElementById('agentChatName').innerText = data.user.name;
+                        loadCustomerUnreadCounts();
                         resetChatState();
                         initSocket();
                         await loadAgentDetails();
@@ -667,6 +708,7 @@
                     document.getElementById('agentName').innerText = currentAgent.name;
                     document.getElementById('agentChatName').innerText = currentAgent.name;
                     localStorage.removeItem('lastThreadId');
+                    loadCustomerUnreadCounts();
                     resetChatState();
                     
                     initSocket();
@@ -713,7 +755,7 @@
                 adminAgents = await res.json();
                 adminUnreadCounts = unreadRes.ok ? await unreadRes.json() : {};
                 onlineInternalUserIds = new Set(onlineRes.ok ? await onlineRes.json() : []);
-                adminChatUnread = Object.values(adminUnreadCounts).reduce((total, count) => total + Number(count || 0), 0);
+                recalculateAdminChatUnread();
                 updateAdminChatBadge();
                 renderAdminAgentList();
             } catch (err) {
@@ -733,12 +775,12 @@
             }
 
             list.innerHTML = adminAgents.map(admin => `
-                <button type="button" class="admin-agent-row ${currentAdminChatId === admin.id ? 'active' : ''} ${onlineInternalUserIds.has(admin.id) ? 'online' : ''}" onclick="selectAdminAgent(${admin.id})">
+                <button type="button" class="admin-agent-row ${currentAdminChatId === admin.id ? 'active' : ''} ${onlineInternalUserIds.has(admin.id) ? 'online' : ''} ${Number(adminUnreadCounts[admin.id] || 0) > 0 ? 'has-unread' : ''}" onclick="selectAdminAgent(${admin.id})">
                     <strong>
                         <span class="admin-agent-dot"></span>${escapeHtml(admin.name || 'Admin')}
                         <span class="admin-agent-role">${escapeHtml(admin.role || 'team')}</span>
                         ${onlineInternalUserIds.has(admin.id) ? '<span class="admin-agent-online">Online</span>' : ''}
-                        <span class="agent-chat-unread" style="${Number(adminUnreadCounts[admin.id] || 0) > 0 ? 'display:flex' : ''}">${Number(adminUnreadCounts[admin.id] || 0)}</span>
+                        <span class="agent-chat-unread" style="${Number(adminUnreadCounts[admin.id] || 0) > 0 ? 'display:flex' : ''}">NEW ${Number(adminUnreadCounts[admin.id] || 0)}</span>
                     </strong>
                     <small>${escapeHtml(admin.email || '')}</small>
                 </button>
@@ -751,8 +793,8 @@
             document.getElementById('adminChatTitle').innerText = admin?.name || 'Admin Chat';
             document.getElementById('adminChatSubtitle').innerText = admin?.email || 'Internal agent chat';
             document.getElementById('adminChatInput').disabled = false;
-            adminChatUnread = Math.max(0, adminChatUnread - Number(adminUnreadCounts[currentAdminChatId] || 0));
             adminUnreadCounts[currentAdminChatId] = 0;
+            recalculateAdminChatUnread();
             updateAdminChatBadge();
             renderAdminAgentList();
             renderAdminChatMessages();
@@ -905,13 +947,17 @@ function initSocket() {
         if (displayedMessageIds.has(msg.id)) return;
         displayedMessageIds.add(msg.id);
 
-        loadThreads();
-
         if (msg.sender === 'visitor') {
             playNotificationSound();
 
             if (currentThreadId !== msg.threadId) {
                 unreadCounts[msg.threadId] = (unreadCounts[msg.threadId] || 0) + 1;
+                saveCustomerUnreadCounts();
+                updateCustomerChatBadge();
+                loadThreads();
+                const thread = latestThreads.find(item => Number(item.id) === Number(msg.threadId));
+                showCustomerChatToast(`You got message from ${thread?.visitorName || 'Guest'}`, msg.threadId);
+                playNotificationSound();
             }
 
             if (currentThreadId !== msg.threadId && Notification.permission === 'granted') {
@@ -923,11 +969,19 @@ function initSocket() {
 
         if (currentThreadId === msg.threadId) {
             addMessageToChat(msg);
+            loadThreads();
         }
     });
 
     socket.on('new-thread-message', (data) => {
         console.log('📩 New thread message:', data);
+        if (data?.message?.sender === 'visitor' && currentThreadId !== data.threadId) {
+            unreadCounts[data.threadId] = (unreadCounts[data.threadId] || 0) + 1;
+            saveCustomerUnreadCounts();
+            updateCustomerChatBadge();
+            showCustomerChatToast(`You got message from ${data.thread?.visitorName || 'Guest'}`, data.threadId);
+            playNotificationSound();
+        }
         loadThreads();
     });
 
@@ -981,15 +1035,17 @@ function initSocket() {
         }
 
         if (!isAgentChatActive()) {
-            adminChatUnread += 1;
             adminUnreadCounts[adminId] = Number(msg.unreadCount || (adminUnreadCounts[adminId] || 0) + 1);
+            recalculateAdminChatUnread();
             updateAdminChatBadge();
         } else if (currentAdminChatId !== adminId) {
-            adminChatUnread += 1;
             adminUnreadCounts[adminId] = Number(msg.unreadCount || (adminUnreadCounts[adminId] || 0) + 1);
+            recalculateAdminChatUnread();
             updateAdminChatBadge();
         } else {
             adminUnreadCounts[adminId] = 0;
+            recalculateAdminChatUnread();
+            updateAdminChatBadge();
             markAdminChatRead(adminId);
         }
         renderAdminAgentList();
@@ -1012,6 +1068,7 @@ function initSocket() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         let threads = await res.json();
+        latestThreads = threads;
         
         const threadsList = document.getElementById('threadsList');
         const threadCount = document.getElementById('threadCount');
@@ -1028,18 +1085,17 @@ function initSocket() {
         
         let html = '';
         for (let thread of threads) {
-            const isActive = currentThreadId === thread.id;
+            const isActive = Number(currentThreadId) === Number(thread.id);
             const unreadCount = unreadCounts[thread.id] || 0;
             
             html += `
-                <div id="thread-${thread.id}" class="thread-item p-3 rounded-xl ${isActive ? 'active' : 'hover:bg-gray-50'}" onclick="selectThread(${thread.id})">
+                <div id="thread-${thread.id}" class="thread-item p-3 rounded-xl ${isActive ? 'active' : 'hover:bg-gray-50'} ${unreadCount > 0 ? 'has-unread' : ''}" onclick="selectThread(${thread.id})">
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-user-circle text-gray-400"></i>
-                                <i class="fas fa-globe text-xs text-blue-500"></i>
                                 <span class="font-semibold text-gray-800">${escapeHtml(thread.visitorName || 'Guest')}</span>
-                                ${unreadCount > 0 ? `<span class="notification-badge">${unreadCount}</span>` : ''}
+                                ${unreadCount > 0 ? `<span class="notification-badge">NEW ${unreadCount}</span>` : ''}
                             </div>
                             <p class="text-xs text-gray-500 mt-1">
                                 <i class="fas fa-clock mr-1"></i>${new Date(thread.lastMsgTime).toLocaleString()}
@@ -1063,9 +1119,13 @@ function initSocket() {
         
         async function selectThread(threadId) {
             currentThreadId = threadId;
-            unreadCounts[threadId] = 0;
+            delete unreadCounts[threadId];
+            saveCustomerUnreadCounts();
+            updateCustomerChatBadge();
+            loadThreads();
+            const thread = latestThreads.find(item => Number(item.id) === Number(threadId));
             
-            document.getElementById('chatHeaderTitle').innerHTML = '<i class="fas fa-comment-dots mr-2"></i>Chatting with Visitor';
+            document.getElementById('chatHeaderTitle').innerHTML = `<i class="fas fa-comment-dots mr-2"></i>Chatting with ${escapeHtml(thread?.visitorName || 'Visitor')}`;
             document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendButton').disabled = false;
@@ -1078,7 +1138,6 @@ function initSocket() {
             }
             
             await loadMessages(threadId);
-            loadThreads();
         }
 
         function insertQuickReply(replyText) {
@@ -1400,20 +1459,58 @@ function initSocket() {
             document.getElementById('navAgentChat').classList.toggle('active', isAgentChat);
 
             if (isAgentChat) {
-                adminChatUnread = 0;
-                updateAdminChatBadge();
-                if (!currentAdminChatId && adminAgents.length > 0) {
-                    selectAdminAgent(adminAgents[0].id);
-                } else {
-                    renderAdminAgentList();
-                }
+                renderAdminAgentList();
                 renderAdminChatMessages();
                 if (currentAdminChatId) document.getElementById('adminChatInput').focus();
             }
         }
 
+        function navigateSupportView(viewName, path) {
+            if (window.location.pathname !== path) {
+                window.history.pushState({ supportView: viewName }, '', path);
+            }
+            showSupportView(viewName);
+            return false;
+        }
+
+        window.addEventListener('popstate', () => {
+            showSupportView(window.location.pathname.includes('/agent-chat') ? 'agentChat' : 'chat');
+        });
+
         function isAgentChatActive() {
             return activeSupportView === 'agentChat' && !document.getElementById('agentChatPage').classList.contains('hidden');
+        }
+
+        function customerUnreadStorageKey() {
+            return `supportCustomerUnread:${currentAgent?.id || 'guest'}:${currentSiteId || 'all'}`;
+        }
+
+        function loadCustomerUnreadCounts() {
+            try {
+                const savedCounts = JSON.parse(localStorage.getItem(customerUnreadStorageKey()) || '{}');
+                unreadCounts = Object.fromEntries(
+                    Object.entries(savedCounts).filter(([, count]) => Number(count || 0) > 0)
+                );
+            } catch (err) {
+                unreadCounts = {};
+            }
+            updateCustomerChatBadge();
+        }
+
+        function saveCustomerUnreadCounts() {
+            const cleanedCounts = Object.fromEntries(
+                Object.entries(unreadCounts).filter(([, count]) => Number(count || 0) > 0)
+            );
+            unreadCounts = cleanedCounts;
+            localStorage.setItem(customerUnreadStorageKey(), JSON.stringify(cleanedCounts));
+        }
+
+        function updateCustomerChatBadge() {
+            const badge = document.getElementById('customerChatBadge');
+            if (!badge) return;
+            const totalUnread = Object.values(unreadCounts).reduce((total, count) => total + Number(count || 0), 0);
+            badge.innerText = totalUnread;
+            badge.style.display = totalUnread > 0 ? 'flex' : 'none';
         }
 
         function showInternalChatToast(message, userId) {
@@ -1450,11 +1547,49 @@ function initSocket() {
             closeInternalChatToast();
         }
 
+        function showCustomerChatToast(message, threadId) {
+            const toast = document.getElementById('customerChatToast');
+            const text = document.getElementById('customerChatToastText');
+            if (!toast) return;
+            customerToastThreadId = threadId || null;
+            text.innerText = message;
+            toast.classList.remove('closing');
+            toast.style.display = 'flex';
+            clearTimeout(customerToastTimer);
+            clearTimeout(customerToastCloseTimer);
+            customerToastTimer = setTimeout(() => closeCustomerChatToast(), 11000);
+        }
+
+        function closeCustomerChatToast(event) {
+            event?.stopPropagation();
+            const toast = document.getElementById('customerChatToast');
+            clearTimeout(customerToastTimer);
+            clearTimeout(customerToastCloseTimer);
+            if (!toast) return;
+            toast.classList.add('closing');
+            customerToastCloseTimer = setTimeout(() => {
+                toast.style.display = 'none';
+                toast.classList.remove('closing');
+                customerToastThreadId = null;
+            }, 260);
+        }
+
+        function openCustomerToastChat() {
+            if (!customerToastThreadId) return;
+            showSupportView('chat');
+            selectThread(customerToastThreadId);
+            closeCustomerChatToast();
+        }
+
         function markAdminChatRead(adminId) {
             fetch(`${API_URL}/internal-chat/${adminId}/read`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             }).catch(() => {});
+        }
+
+        function recalculateAdminChatUnread() {
+            adminChatUnread = Object.values(adminUnreadCounts).reduce((total, count) => total + Number(count || 0), 0);
         }
 
         function updateAdminChatBadge() {
