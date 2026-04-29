@@ -417,6 +417,7 @@ function initSocket() {
             document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendButton').disabled = false;
+            setQuickRepliesDisabled(false);
             
             if (socket && socket.connected) {
                 socket.emit('join-thread', threadId, currentAgent?.id);
@@ -425,6 +426,20 @@ function initSocket() {
             
             await loadMessages(threadId);
             loadThreads();
+        }
+
+        function insertQuickReply(replyText) {
+            const messageInput = document.getElementById('messageInput');
+            if (!messageInput || messageInput.disabled || !replyText) return;
+
+            messageInput.value = replyText;
+            messageInput.focus();
+        }
+
+        function setQuickRepliesDisabled(isDisabled) {
+            document.querySelectorAll('#quickReplies button').forEach(button => {
+                button.disabled = isDisabled;
+            });
         }
         
         async function loadMessages(threadId) {
