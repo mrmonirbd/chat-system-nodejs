@@ -183,7 +183,7 @@
 </head>
 <body>
     <div class="flex min-h-screen overflow-hidden">
-        <aside class="w-72 bg-[#1e293b] text-white flex-shrink-0 overflow-y-auto hidden lg:block">
+        <aside class="fixed left-0 top-0 h-screen w-72 bg-[#1e293b] text-white overflow-y-auto hidden lg:block z-30">
             <div class="p-5 border-b border-slate-700">
                 <div class="flex items-center gap-3">
                     <i class="fas fa-chart-line text-2xl text-blue-400"></i>
@@ -192,21 +192,22 @@
             </div>
             <nav class="py-6 px-4">
                 <p class="sidebar-title">Dashboard</p>
-                <a href="#analytics" class="sidebar-link active"><i class="fas fa-tachometer-alt w-5"></i><span>Default</span></a>
-                <a href="#messagesChart" class="sidebar-link"><i class="fas fa-chart-line w-5"></i><span>Analytic</span></a>
-                <a href="#sites" class="sidebar-link"><i class="fas fa-globe w-5"></i><span>Sites</span></a>
+                <button onclick="showAdminPage('dashboard')" data-page-link="dashboard" class="sidebar-link active w-full text-left"><i class="fas fa-tachometer-alt w-5"></i><span>Default</span></button>
+                <button onclick="showAdminPage('analytics')" data-page-link="analytics" class="sidebar-link w-full text-left"><i class="fas fa-chart-line w-5"></i><span>Analytic</span></button>
+                <button onclick="showAdminPage('sites')" data-page-link="sites" class="sidebar-link w-full text-left"><i class="fas fa-globe w-5"></i><span>Sites</span></button>
                 <p class="sidebar-title">Apps</p>
-                <a href="/support-panel" class="sidebar-link"><i class="fas fa-comment-dots w-5"></i><span>Chat</span></a>
-                <a href="#support" class="sidebar-link"><i class="fas fa-headset w-5"></i><span>Support Agents</span></a>
-                <a href="#sitesList" class="sidebar-link"><i class="fas fa-key w-5"></i><span>API Keys</span></a>
+                <button onclick="showAdminPage('chat')" data-page-link="chat" class="sidebar-link w-full text-left"><i class="fas fa-comment-dots w-5"></i><span>Chat</span></button>
+                <button onclick="showAdminPage('support')" data-page-link="support" class="sidebar-link w-full text-left"><i class="fas fa-headset w-5"></i><span>Support Agents</span></button>
+                <button onclick="showAdminPage('apiKeys')" data-page-link="apiKeys" class="sidebar-link w-full text-left"><i class="fas fa-key w-5"></i><span>API Keys</span></button>
+                <button onclick="showAdminPage('users')" data-page-link="users" class="sidebar-link w-full text-left"><i class="fas fa-users w-5"></i><span>Users</span></button>
                 <p class="sidebar-title">Components</p>
-                <a href="#messagesChart" class="sidebar-link"><i class="fas fa-chart-pie w-5"></i><span>Charts</span></a>
-                <a href="#sitesList" class="sidebar-link"><i class="fas fa-table w-5"></i><span>Data Display</span></a>
+                <button onclick="showAdminPage('analytics')" class="sidebar-link w-full text-left"><i class="fas fa-chart-pie w-5"></i><span>Charts</span></button>
+                <button onclick="showAdminPage('users')" class="sidebar-link w-full text-left"><i class="fas fa-table w-5"></i><span>Data Display</span></button>
                 <p class="sidebar-title">System</p>
                 <button onclick="logout()" class="sidebar-link w-full text-left"><i class="fas fa-sign-out-alt w-5"></i><span>Logout</span></button>
             </nav>
         </aside>
-        <main class="flex-1 overflow-y-auto">
+        <main class="flex-1 overflow-y-auto lg:ml-72">
     <div class="p-6">
         <!-- Header -->
         <div class="fade-in hidden">
@@ -232,6 +233,7 @@
         </div>
 
         <!-- Analytics Dashboard -->
+        <section id="page-dashboard" class="admin-page">
         <div id="analytics" class="mb-6 fade-in">
             <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
                 <div>
@@ -293,7 +295,31 @@
             </div>
         </div>
 
-        <!-- Main Content Grid -->
+        </section>
+
+        <section id="page-analytics" class="admin-page hidden">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">Analytics</h2>
+                    <p class="text-gray-500 text-sm mt-1">Messages, site growth, and support agent growth</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="range-btn" data-range="7d" onclick="setAnalyticsRange('7d')">7 Day</button>
+                    <button class="range-btn active" data-range="30d" onclick="setAnalyticsRange('30d')">30 Day</button>
+                    <button class="range-btn" data-range="6m" onclick="setAnalyticsRange('6m')">6 Month</button>
+                    <button class="range-btn" data-range="1y" onclick="setAnalyticsRange('1y')">1 Year</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 gap-6">
+                <div class="bg-white rounded-xl shadow-sm p-5 chart-panel border border-gray-100"><h3 class="font-semibold text-gray-800 mb-3">Messages</h3><canvas id="messagesChartDetail"></canvas></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-sm p-5 chart-panel border border-gray-100"><canvas id="sitesChartDetail"></canvas><p class="text-center mt-2 text-gray-600">Total Site Growth</p></div>
+                    <div class="bg-white rounded-xl shadow-sm p-5 chart-panel border border-gray-100"><canvas id="supportAgentsChartDetail"></canvas><p class="text-center mt-2 text-gray-600">Support Agent Growth</p></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="page-sites" class="admin-page hidden">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 fade-in">
             <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
                 <p class="text-gray-500 text-sm">Total Sites</p>
@@ -337,7 +363,21 @@
             </div>
 
             <!-- Add Support Agent Card -->
-            <div id="support" class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 lg:col-span-3">
+        </div>
+        <div class="bg-white rounded-xl shadow-sm overflow-hidden fade-in border border-gray-100">
+            <div class="px-5 py-4 border-b border-gray-100">
+                <h2 class="font-semibold text-gray-800"><i class="fas fa-list mr-2"></i>Your Websites & Integration</h2>
+            </div>
+            <div class="p-6">
+                <div id="sitesList" class="grid grid-cols-1 gap-6">
+                    <div class="text-center py-8 text-gray-500"><i class="fas fa-spinner fa-spin text-3xl mb-2"></i><p>Loading sites...</p></div>
+                </div>
+            </div>
+        </div>
+        </section>
+
+        <section id="page-support" class="admin-page hidden">
+            <div id="support" class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 mb-6">
                 <div class="px-5 py-4 border-b border-gray-100">
                     <h2 class="font-semibold text-gray-800">
                         <i class="fas fa-user-plus mr-2"></i>Add Support Agent
@@ -382,24 +422,32 @@
                     </div>
                 </div>
             </div>
-        </div>
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-800"><i class="fas fa-headset mr-2"></i>Support Agents</h2></div>
+                <div class="p-5 overflow-x-auto"><table class="w-full text-sm"><thead class="text-gray-500 border-b"><tr><th class="text-left py-2">Name</th><th class="text-left">Email</th><th class="text-left">Site ID</th><th class="text-left">Created</th></tr></thead><tbody id="supportAgentsList"></tbody></table></div>
+            </div>
+        </section>
 
-        <!-- Sites List Section -->
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden fade-in border border-gray-100">
-            <div class="px-5 py-4 border-b border-gray-100">
-                <h2 class="font-semibold text-gray-800">
-                    <i class="fas fa-list mr-2"></i>Your Websites & Integration
-                </h2>
+        <section id="page-apiKeys" class="admin-page hidden">
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-800"><i class="fas fa-key mr-2"></i>API Keys</h2></div>
+                <div class="p-5 overflow-x-auto"><table class="w-full text-sm"><thead class="text-gray-500 border-b"><tr><th class="text-left py-2">Site</th><th class="text-left">Domain</th><th class="text-left">API Key</th><th class="text-left">Action</th></tr></thead><tbody id="apiKeysList"></tbody></table></div>
             </div>
-            <div class="p-6">
-                <div id="sitesList" class="grid grid-cols-1 gap-6">
-                    <div class="text-center py-8 text-gray-500">
-                        <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
-                        <p>Loading sites...</p>
-                    </div>
-                </div>
+        </section>
+
+        <section id="page-users" class="admin-page hidden">
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-800"><i class="fas fa-users mr-2"></i>Users</h2></div>
+                <div class="p-5 overflow-x-auto"><table class="w-full text-sm"><thead class="text-gray-500 border-b"><tr><th class="text-left py-2">Name</th><th class="text-left">Email</th><th class="text-left">Role</th><th class="text-left">Site ID</th><th class="text-left">Status</th></tr></thead><tbody id="usersList"></tbody></table></div>
             </div>
-        </div>
+        </section>
+
+        <section id="page-chat" class="admin-page hidden">
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+                <div class="px-5 py-4 border-b border-gray-100"><h2 class="font-semibold text-gray-800"><i class="fas fa-comment-dots mr-2"></i>Chat Threads</h2></div>
+                <div class="p-5 overflow-x-auto"><table class="w-full text-sm"><thead class="text-gray-500 border-b"><tr><th class="text-left py-2">Visitor</th><th class="text-left">Site</th><th class="text-left">Status</th><th class="text-left">Assigned</th><th class="text-left">Last Message</th></tr></thead><tbody id="adminThreadsList"></tbody></table></div>
+            </div>
+        </section>
     </div>
         </main>
     </div>
@@ -538,8 +586,23 @@
     async function loadDashboard() {
         await Promise.all([
             loadSites(),
-            loadAnalytics()
+            loadAnalytics(),
+            loadUsers(),
+            loadAdminThreads()
         ]);
+    }
+
+    function showAdminPage(page) {
+        document.querySelectorAll('.admin-page').forEach(section => section.classList.add('hidden'));
+        document.getElementById(`page-${page}`)?.classList.remove('hidden');
+        document.querySelectorAll('[data-page-link]').forEach(link => {
+            link.classList.toggle('active', link.dataset.pageLink === page);
+        });
+
+        if (page === 'sites' || page === 'apiKeys') loadSites();
+        if (page === 'support' || page === 'users') loadUsers();
+        if (page === 'chat') loadAdminThreads();
+        if (page === 'analytics' || page === 'dashboard') loadAnalytics();
     }
 
     function setAnalyticsRange(range) {
@@ -636,6 +699,9 @@
             renderLineChart('messagesChart', 'Messages', data.charts.messages.labels, data.charts.messages.data, '#4f46e5');
             renderLineChart('sitesChart', 'Sites', data.charts.sites.labels, data.charts.sites.data, '#2563eb');
             renderLineChart('supportAgentsChart', 'Support Agents', data.charts.supportAgents.labels, data.charts.supportAgents.data, '#16a34a');
+            renderLineChart('messagesChartDetail', 'Messages', data.charts.messages.labels, data.charts.messages.data, '#4f46e5');
+            renderLineChart('sitesChartDetail', 'Sites', data.charts.sites.labels, data.charts.sites.data, '#2563eb');
+            renderLineChart('supportAgentsChartDetail', 'Support Agents', data.charts.supportAgents.labels, data.charts.supportAgents.data, '#16a34a');
         } catch (err) {
             console.error('Load analytics error:', err);
             showError(err.message);
@@ -744,25 +810,38 @@
             
             const siteSelect = document.getElementById('siteSelect');
             const sitesList = document.getElementById('sitesList');
+            const apiKeysList = document.getElementById('apiKeysList');
             
-            siteSelect.innerHTML = '<option value="">🌐 Choose a site...</option>';
+            if (siteSelect) siteSelect.innerHTML = '<option value="">🌐 Choose a site...</option>';
+            if (apiKeysList) apiKeysList.innerHTML = '';
             
             if (sites.length === 0) {
-                sitesList.innerHTML = `
+                if (sitesList) sitesList.innerHTML = `
                     <div class="text-center py-12 bg-gray-50 rounded-xl">
                         <i class="fas fa-folder-open text-5xl text-gray-300 mb-3"></i>
                         <p class="text-gray-500">No sites created yet. Create your first site above!</p>
                     </div>
                 `;
+                if (apiKeysList) apiKeysList.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-gray-500">No API keys yet.</td></tr>';
                 return;
             }
             
-            sitesList.innerHTML = '';
+            if (sitesList) sitesList.innerHTML = '';
             
             sites.forEach(site => {
-                siteSelect.innerHTML += `<option value="${site.id}">🏢 ${site.name} (${site.domain})</option>`;
+                if (siteSelect) siteSelect.innerHTML += `<option value="${site.id}">🏢 ${site.name} (${site.domain})</option>`;
+                if (apiKeysList) {
+                    apiKeysList.innerHTML += `
+                        <tr class="border-b last:border-0">
+                            <td class="py-3 font-medium text-gray-800">${escapeHtml(site.name)}</td>
+                            <td>${escapeHtml(site.domain)}</td>
+                            <td><code class="text-xs bg-gray-100 px-2 py-1 rounded">${escapeHtml(site.apiKey)}</code></td>
+                            <td><button onclick="copyToClipboard('${site.apiKey}')" class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">Copy</button></td>
+                        </tr>
+                    `;
+                }
                 
-                sitesList.innerHTML += `
+                if (sitesList) sitesList.innerHTML += `
                     <div class="border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300">
                         <div class="flex justify-between items-start mb-3">
                             <div>
@@ -812,12 +891,79 @@
             });
         } catch (err) {
             console.error('Load sites error:', err);
-            document.getElementById('sitesList').innerHTML = `
+            const sitesList = document.getElementById('sitesList');
+            if (sitesList) sitesList.innerHTML = `
                 <div class="text-center py-12 text-red-500">
                     <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
                     <p>Failed to load sites. Please refresh the page.</p>
                 </div>
             `;
+        }
+    }
+
+    async function loadUsers() {
+        try {
+            const res = await fetch(`${API_URL}/users/list`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const users = await res.json();
+            if (!res.ok) throw new Error(users.error || 'Failed to load users');
+
+            const usersList = document.getElementById('usersList');
+            const supportAgentsList = document.getElementById('supportAgentsList');
+            if (usersList) usersList.innerHTML = '';
+            if (supportAgentsList) supportAgentsList.innerHTML = '';
+
+            users.forEach(user => {
+                if (usersList) {
+                    usersList.innerHTML += `
+                        <tr class="border-b last:border-0">
+                            <td class="py-3 font-medium text-gray-800">${escapeHtml(user.name)}</td>
+                            <td>${escapeHtml(user.email)}</td>
+                            <td><span class="px-2 py-1 rounded bg-gray-100 text-xs font-bold">${escapeHtml(user.role)}</span></td>
+                            <td>${user.siteId || '-'}</td>
+                            <td>${user.isActive ? '<span class="text-green-600 font-semibold">Active</span>' : '<span class="text-red-600 font-semibold">Inactive</span>'}</td>
+                        </tr>
+                    `;
+                }
+
+                if (supportAgentsList && user.role === 'support') {
+                    supportAgentsList.innerHTML += `
+                        <tr class="border-b last:border-0">
+                            <td class="py-3 font-medium text-gray-800">${escapeHtml(user.name)}</td>
+                            <td>${escapeHtml(user.email)}</td>
+                            <td>${user.siteId || '-'}</td>
+                            <td>${new Date(user.createdAt).toLocaleString()}</td>
+                        </tr>
+                    `;
+                }
+            });
+        } catch (err) {
+            showError(err.message);
+        }
+    }
+
+    async function loadAdminThreads() {
+        try {
+            const res = await fetch(`${API_URL}/admin/threads`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const threads = await res.json();
+            if (!res.ok) throw new Error(threads.error || 'Failed to load chat threads');
+
+            const list = document.getElementById('adminThreadsList');
+            if (!list) return;
+            list.innerHTML = threads.map(thread => `
+                <tr class="border-b last:border-0">
+                    <td class="py-3 font-medium text-gray-800">${escapeHtml(thread.visitorName || 'Guest')}</td>
+                    <td>${escapeHtml(thread.Site?.name || '-')}</td>
+                    <td><span class="px-2 py-1 rounded bg-gray-100 text-xs font-bold">${escapeHtml(thread.status)}</span></td>
+                    <td>${escapeHtml(thread.AssignedSupport?.name || 'Unassigned')}</td>
+                    <td>${new Date(thread.lastMessageAt).toLocaleString()}</td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            showError(err.message);
         }
     }
     
