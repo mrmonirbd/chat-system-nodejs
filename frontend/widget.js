@@ -24,6 +24,7 @@
     // Track displayed messages by unique ID
     let displayedMessages = new Set();
     let chatConnectPromise = null;
+    let supportTypingTimeout = null;
     
     function getVisitorId() {
         let visitorId = localStorage.getItem('chat_visitor_id');
@@ -263,6 +264,7 @@
             CONFIG.socket.on('previous-messages', (messages) => {
                 messagesDiv.innerHTML = '';
                 displayedMessages.clear();
+                hideSupportTyping();
                 messages.forEach(msg => {
                     const uniqueKey = `${msg.id}_${msg.sender}_${msg.message.substring(0, 20)}`;
                     if (!displayedMessages.has(uniqueKey)) {
@@ -284,7 +286,12 @@
                 }
                 
                 displayedMessages.add(uniqueKey);
+                hideSupportTyping();
                 addMessageToUI(messagesDiv, msg);
+            });
+
+            CONFIG.socket.on('visitor-typing', (data) => {
+                showSupportTyping(messagesDiv, data.isTyping);
             });
             
             CONFIG.socket.on('connect_error', (err) => {
@@ -297,6 +304,46 @@
                 if (!previousMessagesLoaded) resolve();
             }, 3000);
         });
+    }
+
+    function showSupportTyping(messagesDiv, isTyping) {
+        const existingIndicator = document.getElementById('support-typing-indicator');
+
+        if (!isTyping) {
+            hideSupportTyping();
+            return;
+        }
+
+        if (!existingIndicator) {
+            const typingDiv = document.createElement('div');
+            typingDiv.id = 'support-typing-indicator';
+            typingDiv.style.display = 'flex';
+            typingDiv.style.justifyContent = 'flex-start';
+            typingDiv.style.marginBottom = '12px';
+            typingDiv.innerHTML = `
+                <div style="padding:10px 14px; border-radius:12px; background:#e5e7eb; color:#1f2937; display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:12px; color:#4b5563;">Typing</span>
+                    <span style="display:flex; gap:3px;">
+                        <span style="width:5px; height:5px; border-radius:50%; background:#6b7280; opacity:0.5;"></span>
+                        <span style="width:5px; height:5px; border-radius:50%; background:#6b7280; opacity:0.75;"></span>
+                        <span style="width:5px; height:5px; border-radius:50%; background:#6b7280;"></span>
+                    </span>
+                </div>
+            `;
+            messagesDiv.appendChild(typingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        clearTimeout(supportTypingTimeout);
+        supportTypingTimeout = setTimeout(() => {
+            hideSupportTyping();
+        }, 2500);
+    }
+
+    function hideSupportTyping() {
+        clearTimeout(supportTypingTimeout);
+        const existingIndicator = document.getElementById('support-typing-indicator');
+        if (existingIndicator) existingIndicator.remove();
     }
     
     function loadSocketIO() {
