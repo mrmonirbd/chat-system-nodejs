@@ -1,4 +1,5 @@
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
+import Swal from 'sweetalert2';
 
 type AdminView = 'dashboard' | 'chat' | 'agentChat' | 'sites' | 'support' | 'apiKeys' | 'users';
 type AnalyticsRange = '1d' | '7d' | '30d' | '6m' | '1y';
@@ -390,7 +391,8 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
 
   async function createSite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     try {
       await fetchJson(`${API_URL}/sites/create`, {
         method: 'POST',
@@ -400,17 +402,21 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
           domain: formData.get('domain')
         })
       });
-      event.currentTarget.reset();
+      form.reset();
       setError('');
+      showSwalToast('Site added successfully');
       loadAll();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create site');
+      const message = err instanceof Error ? err.message : 'Failed to create site';
+      setError(message);
+      showSwalToast(message, 'error');
     }
   }
 
   async function createSupport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     try {
       await fetchJson(`${API_URL}/sites/add-support`, {
         method: 'POST',
@@ -422,11 +428,14 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
           password: formData.get('password')
         })
       });
-      event.currentTarget.reset();
+      form.reset();
       setError('');
+      showSwalToast('Support agent added successfully');
       loadAll();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add support agent');
+      const message = err instanceof Error ? err.message : 'Failed to add support agent';
+      setError(message);
+      showSwalToast(message, 'error');
     }
   }
 
@@ -458,6 +467,18 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     setNotice({ message, agentId });
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
     if (noticeCloseTimerRef.current) window.clearTimeout(noticeCloseTimerRef.current);
+  }
+
+  function showSwalToast(message: string, icon: 'success' | 'error' | 'info' = 'success') {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon,
+      title: message,
+      showConfirmButton: false,
+      timer: 2600,
+      timerProgressBar: true
+    });
   }
 
   function playNotificationSound() {
@@ -736,11 +757,11 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
                 <button>Create Site</button>
               </form>
             </div>
-            <DataTable headers={['Site', 'Domain', 'API Key', 'Embed Tag']} rows={sites.map(site => [site.name, site.domain, site.apiKey, <EmbedCode apiKey={site.apiKey} onCopied={() => showNotice('Embed code copied')} />])} />
+            <DataTable headers={['Site', 'Domain', 'API Key', 'Embed Tag']} rows={sites.map(site => [site.name, site.domain, site.apiKey, <EmbedCode apiKey={site.apiKey} onCopied={() => showSwalToast('Embed code copied')} />])} />
           </div>
         )}
 
-        {view === 'apiKeys' && <DataTable headers={['Site', 'Domain', 'API Key', 'Embed Tag']} rows={sites.map(site => [site.name, site.domain, site.apiKey, <EmbedCode apiKey={site.apiKey} onCopied={() => showNotice('Embed code copied')} />])} />}
+        {view === 'apiKeys' && <DataTable headers={['Site', 'Domain', 'API Key', 'Embed Tag']} rows={sites.map(site => [site.name, site.domain, site.apiKey, <EmbedCode apiKey={site.apiKey} onCopied={() => showSwalToast('Embed code copied')} />])} />}
 
         {view === 'support' && (
           <div className="admin-two-col">

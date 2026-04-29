@@ -37,6 +37,18 @@
         }
         return visitorId;
     }
+
+    function getWidgetOpenStorageKey() {
+        return `chat_widget_open_${CONFIG.apiKey}_${CONFIG.visitorId}`;
+    }
+
+    function saveWidgetOpenState(isOpen) {
+        localStorage.setItem(getWidgetOpenStorageKey(), isOpen ? '1' : '0');
+    }
+
+    function shouldRestoreWidgetOpen() {
+        return localStorage.getItem(getWidgetOpenStorageKey()) === '1';
+    }
     
     CONFIG.visitorId = getVisitorId();
     
@@ -111,15 +123,18 @@
         toggle.onclick = () => {
             if (windowDiv.style.display === 'none' || windowDiv.style.display === '') {
                 windowDiv.style.display = 'flex';
+                saveWidgetOpenState(true);
                 notifyChatBoxOpen();
             } else {
                 windowDiv.style.display = 'none';
+                saveWidgetOpenState(false);
                 notifyChatBoxClose();
             }
         };
         
         close.onclick = () => {
             windowDiv.style.display = 'none';
+            saveWidgetOpenState(false);
             notifyChatBoxClose();
         };
 
@@ -128,6 +143,11 @@
         input.onkeypress = (e) => {
             if (e.key === 'Enter') send.onclick();
         };
+
+        if (shouldRestoreWidgetOpen()) {
+            windowDiv.style.display = 'flex';
+            notifyChatBoxOpen();
+        }
     }
 
     function showGreetingMessage(messagesDiv, greetingMessage, supportAvailability) {
@@ -193,9 +213,12 @@
         await loadSocketIO();
         if (typeof io === 'undefined') return;
 
-        CONFIG.availabilitySocket = io(CONFIG.apiUrl);
+        CONFIG.availabilitySocket = io(CONFIG.apiUrl, getSocketOptions());
         CONFIG.availabilitySocket.on('connect', () => {
             CONFIG.availabilitySocket.emit('visitor-join-site', CONFIG.siteId);
+            if (shouldRestoreWidgetOpen()) {
+                notifyChatBoxOpen();
+            }
         });
 
         CONFIG.availabilitySocket.on('support-availability', (supportAvailability) => {
@@ -226,6 +249,9 @@
             input.disabled = true;
             send.disabled = true;
             await ensureChatConnected(messagesDiv);
+            if (!CONFIG.socket?.connected) {
+                throw new Error('Server is reconnecting. Please try again in a moment.');
+            }
 
             CONFIG.socket.emit('visitor-message', {
                 threadId: CONFIG.threadId,
@@ -236,7 +262,7 @@
             input.value = '';
         } catch (err) {
             console.error('Send message error:', err);
-            messagesDiv.innerHTML = `<div style="text-align:center;color:red;padding:20px;">Error: ${err.message}</div>`;
+            showConnectionNotice(messagesDiv, err.message || 'Cannot connect to server. Reconnecting...');
         } finally {
             input.disabled = false;
             send.disabled = false;
@@ -310,12 +336,16 @@
                 CONFIG.socket.disconnect();
             }
 
-            CONFIG.socket = io(CONFIG.apiUrl);
+            CONFIG.socket = io(CONFIG.apiUrl, getSocketOptions());
             let previousMessagesLoaded = false;
 
             CONFIG.socket.on('connect', () => {
                 console.log('✅ Socket connected');
+                hideConnectionNotice();
                 CONFIG.socket.emit('join-thread', CONFIG.threadId, CONFIG.visitorId);
+                if (shouldRestoreWidgetOpen()) {
+                    notifyChatBoxOpen();
+                }
             });
             
             CONFIG.socket.on('previous-messages', (messages) => {
@@ -347,14 +377,59 @@
             
             CONFIG.socket.on('connect_error', (err) => {
                 console.error('Socket error:', err);
-                messagesDiv.innerHTML = '<div style="text-align:center;color:red;padding:20px;">Cannot connect to server.</div>';
-                reject(err);
+                showConnectionNotice(messagesDiv, 'Cannot connect to server. Reconnecting...');
+            });
+
+            CONFIG.socket.on('disconnect', () => {
+                showConnectionNotice(messagesDiv, 'Connection lost. Reconnecting...');
+            });
+
+            CONFIG.socket.io?.on('reconnect_attempt', () => {
+                showConnectionNotice(messagesDiv, 'Reconnecting...');
+            });
+
+            CONFIG.socket.io?.on('reconnect', () => {
+                hideConnectionNotice();
             });
 
             setTimeout(() => {
                 if (!previousMessagesLoaded) resolve();
             }, 3000);
         });
+    }
+
+    function getSocketOptions() {
+        return {
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 8000
+        };
+    }
+
+    function showConnectionNotice(messagesDiv, message) {
+        let notice = document.getElementById('chat-connection-notice');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'chat-connection-notice';
+            notice.style.textAlign = 'center';
+            notice.style.color = '#92400e';
+            notice.style.background = '#fef3c7';
+            notice.style.border = '1px solid #fde68a';
+            notice.style.borderRadius = '10px';
+            notice.style.padding = '8px 10px';
+            notice.style.marginBottom = '12px';
+            notice.style.fontSize = '12px';
+            messagesDiv.appendChild(notice);
+        }
+        notice.textContent = message;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    function hideConnectionNotice() {
+        const notice = document.getElementById('chat-connection-notice');
+        if (notice) notice.remove();
     }
 
     function renderMessages(messagesDiv, messages) {

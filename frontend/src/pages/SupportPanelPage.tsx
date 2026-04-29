@@ -328,7 +328,8 @@ export function SupportPanelPage({ initialView, navigate }: SupportPanelPageProp
 
   async function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     const currentPassword = String(formData.get('currentPassword') || '');
     const newPassword = String(formData.get('newPassword') || '');
     const confirmPassword = String(formData.get('confirmPassword') || '');
@@ -344,7 +345,7 @@ export function SupportPanelPage({ initialView, navigate }: SupportPanelPageProp
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword, newPassword })
       });
-      event.currentTarget.reset();
+      form.reset();
       setPasswordMessage(data.message || 'Password changed successfully.');
     } catch (err) {
       setPasswordMessage(err instanceof Error ? err.message : 'Failed to change password');
