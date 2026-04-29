@@ -43,7 +43,7 @@ app.use(cors({
 app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../admin-panel'), { index: false }));
+app.use(express.static(path.join(__dirname, '../frontend/admin-panel'), { index: false }));
 app.use('/frontend', express.static(path.join(__dirname, '../frontend')));
 
 const frontendDistPath = path.join(__dirname, '../frontend/dist');
@@ -618,13 +618,13 @@ app.get('/privacy', (req, res) => {
   sendFrontendApp(res);
 });
 app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, '../admin-panel/index.html'));
+  res.sendFile(path.join(__dirname, '../frontend/admin-panel/index.html'));
 });
 app.get('/dashboard', (req, res) => {
   res.redirect('/admin');
 });
 app.get('/support-panel', (req, res) => {
-  res.sendFile(path.join(__dirname, '../admin-panel/support-panel.html'));
+  res.sendFile(path.join(__dirname, '../frontend/admin-panel/support-panel.html'));
 });
 app.get('/widget.js', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/widget.js'));

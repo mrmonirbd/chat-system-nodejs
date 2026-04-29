@@ -20,7 +20,6 @@ export function LoginPage({ navigate }: LoginPageProps) {
   const [tab, setTab] = useState<'login' | 'signup'>('login');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'error' | 'success' | ''>('');
-  const [signupRole, setSignupRole] = useState<'admin' | 'support'>('admin');
 
   function completeAuth(data: AuthResponse) {
     if (data.user.role === 'admin') {
@@ -75,8 +74,8 @@ export function LoginPage({ navigate }: LoginPageProps) {
           name: formData.get('name'),
           email: formData.get('email'),
           password: formData.get('password'),
-          role: signupRole,
-          siteId: signupRole === 'support' ? formData.get('siteId') : null,
+          role: 'admin',
+          siteId: null,
           acceptedTerms: formData.get('terms') === 'on',
           acceptedPrivacy: formData.get('privacy') === 'on'
         })
@@ -97,12 +96,7 @@ export function LoginPage({ navigate }: LoginPageProps) {
             <span className="brand-mark">C</span>
             <span>Chat System</span>
           </AppLink>
-          <p>Login or create an account to continue.</p>
-        </div>
-
-        <div className="tabs">
-          <button className={`tab ${tab === 'login' ? 'active' : ''}`} type="button" onClick={() => setTab('login')}>Login</button>
-          <button className={`tab ${tab === 'signup' ? 'active' : ''}`} type="button" onClick={() => setTab('signup')}>Sign up</button>
+          <p>{tab === 'login' ? 'Login to continue.' : 'Create an account to continue.'}</p>
         </div>
 
         {message && <div className={`auth-message ${messageType}`}>{message}</div>}
@@ -118,6 +112,21 @@ export function LoginPage({ navigate }: LoginPageProps) {
               <input id="loginPassword" name="password" type="password" required placeholder="Password" />
             </div>
             <button className="auth-btn" type="submit">Login</button>
+            <p className="auth-switch auth-forgot">
+              <button
+                type="button"
+                onClick={() => {
+                  setMessage('Password reset is not available yet. Please contact your admin.');
+                  setMessageType('error');
+                }}
+              >
+                Forgot password?
+              </button>
+            </p>
+            <p className="auth-switch">
+              Don&apos;t have an account?{' '}
+              <button type="button" onClick={() => setTab('signup')}>Sign up here</button>
+            </p>
           </form>
         )}
 
@@ -135,19 +144,6 @@ export function LoginPage({ navigate }: LoginPageProps) {
               <label htmlFor="signupPassword">Password</label>
               <input id="signupPassword" name="password" type="password" required minLength={6} placeholder="Minimum 6 characters" />
             </div>
-            <div className="field">
-              <label htmlFor="signupRole">Account type</label>
-              <select id="signupRole" value={signupRole} onChange={(event) => setSignupRole(event.target.value as 'admin' | 'support')}>
-                <option value="admin">Admin</option>
-                <option value="support">Support agent</option>
-              </select>
-            </div>
-            {signupRole === 'support' && (
-              <div className="field">
-                <label htmlFor="signupSiteId">Site ID</label>
-                <input id="signupSiteId" name="siteId" type="number" required placeholder="Required for support agents" />
-              </div>
-            )}
             <label className="check">
               <input name="terms" type="checkbox" required />
               <span>I agree to the <AppLink href="/terms" navigate={navigate}>Terms</AppLink>.</span>
@@ -157,6 +153,10 @@ export function LoginPage({ navigate }: LoginPageProps) {
               <span>I agree to the <AppLink href="/privacy" navigate={navigate}>Privacy Policy</AppLink>.</span>
             </label>
             <button className="auth-btn" type="submit">Create account</button>
+            <p className="auth-switch">
+              Already have an account?{' '}
+              <button type="button" onClick={() => setTab('login')}>Login here</button>
+            </p>
           </form>
         )}
 

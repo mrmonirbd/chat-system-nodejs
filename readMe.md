@@ -29,13 +29,13 @@ chat-system/
 ├── frontend/               # Chat widget
 │   ├── widget.js          # Widget functionality
 │   ├── widget.css         # Widget styling
-│   └── index.html         # Widget markup
-├── admin-panel/            # Admin dashboard
-│   ├── index.html         # Login page
-│   ├── dashboard.html     # Main dashboard
-│   ├── support-panel.html # Support interface
-│   └── js/
-│       └── admin.js       # Dashboard logic
+│   ├── index.html         # Widget markup
+│   └── admin-panel/       # Admin dashboard
+│       ├── index.html     # Login page
+│       ├── dashboard.html # Main dashboard
+│       ├── support-panel.html # Support interface
+│       └── js/
+│           └── admin.js   # Dashboard logic
 └── readMe.md              # This file
 ```
 
@@ -327,7 +327,6 @@ admin panel eill be like this
 -------------------------------
 
 http://localhost:3000/admin
-
 
 
 
