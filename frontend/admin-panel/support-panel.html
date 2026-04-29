@@ -1523,7 +1523,6 @@ function initSocket() {
             toast.style.display = 'flex';
             clearTimeout(internalToastTimer);
             clearTimeout(internalToastCloseTimer);
-            internalToastTimer = setTimeout(() => closeInternalChatToast(), 11000);
         }
 
         function closeInternalChatToast(event) {
@@ -1557,7 +1556,6 @@ function initSocket() {
             toast.style.display = 'flex';
             clearTimeout(customerToastTimer);
             clearTimeout(customerToastCloseTimer);
-            customerToastTimer = setTimeout(() => closeCustomerChatToast(), 11000);
         }
 
         function closeCustomerChatToast(event) {

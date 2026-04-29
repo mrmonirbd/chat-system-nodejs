@@ -448,7 +448,6 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
     setNotice({ message, agentId });
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
     if (noticeCloseTimerRef.current) window.clearTimeout(noticeCloseTimerRef.current);
-    noticeTimerRef.current = window.setTimeout(() => closeNotice(), 11000);
   }
 
   function playNotificationSound() {
