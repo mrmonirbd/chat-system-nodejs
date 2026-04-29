@@ -71,9 +71,19 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+        .quick-replies-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            max-height: 92px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 4px 10px 0;
+        }
         .quick-reply-settings {
             position: absolute;
-            right: 0;
+            left: 0;
             bottom: 100%;
             margin-bottom: 10px;
             width: 320px;
@@ -135,14 +145,14 @@
                 </div>
                 <div class="p-4 border-t border-gray-200 bg-gray-50">
                     <div class="relative">
-                        <div class="flex gap-2 overflow-x-auto pb-3 items-center" id="quickReplies">
+                        <div class="quick-replies-list" id="quickReplies">
+                            <button type="button" class="quick-reply-chip" onclick="toggleQuickReplySettings()" title="Manage quick replies"><i class="fas fa-cog"></i></button>
                             <button type="button" class="quick-reply-chip" data-reply="Hello! How can I help you today?" onclick="insertQuickReply(this.dataset.reply)" disabled>Hello</button>
                             <button type="button" class="quick-reply-chip" data-reply="Thanks for reaching out. I am checking this for you." onclick="insertQuickReply(this.dataset.reply)" disabled>Checking</button>
                             <button type="button" class="quick-reply-chip" data-reply="Could you please share a little more detail?" onclick="insertQuickReply(this.dataset.reply)" disabled>More detail</button>
                             <button type="button" class="quick-reply-chip" data-reply="Please wait a moment while I look into this." onclick="insertQuickReply(this.dataset.reply)" disabled>Please wait</button>
                             <button type="button" class="quick-reply-chip" data-reply="This should be resolved now. Please check and let me know." onclick="insertQuickReply(this.dataset.reply)" disabled>Resolved</button>
                             <span id="customQuickReplies" class="flex gap-2"></span>
-                            <button type="button" class="quick-reply-chip" onclick="toggleQuickReplySettings()" title="Manage quick replies"><i class="fas fa-cog"></i></button>
                         </div>
                         <div id="quickReplySettings" class="quick-reply-settings hidden p-3">
                             <div class="flex items-center justify-between gap-3 mb-3">
