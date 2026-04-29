@@ -213,6 +213,7 @@
             gap: 8px;
             color: #1f2937;
             font-size: 14px;
+            flex-wrap: wrap;
         }
         .admin-agent-row small {
             display: block;
@@ -220,17 +221,10 @@
             margin-top: 4px;
             font-size: 12px;
         }
-        .admin-agent-meta {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 6px;
-            flex-wrap: wrap;
-        }
         .admin-agent-role,
         .admin-agent-online {
             border-radius: 999px;
-            padding: 3px 8px;
+            padding: 2px 8px;
             font-size: 10px;
             font-weight: 800;
             text-transform: uppercase;
@@ -244,13 +238,19 @@
             background: #dcfce7;
             color: #15803d;
         }
+        .admin-agent-row.online {
+            border-color: #bbf7d0;
+        }
         .admin-agent-dot {
             width: 9px;
             height: 9px;
             border-radius: 50%;
+            background: #cbd5e1;
+            flex: 0 0 auto;
+        }
+        .admin-agent-row.online .admin-agent-dot {
             background: #22c55e;
             box-shadow: 0 0 0 3px rgba(34, 197, 94, .14);
-            flex: 0 0 auto;
         }
         .admin-agent-empty {
             color: #94a3b8;
@@ -668,15 +668,13 @@
             }
 
             list.innerHTML = adminAgents.map(admin => `
-                <button type="button" class="admin-agent-row ${currentAdminChatId === admin.id ? 'active' : ''}" onclick="selectAdminAgent(${admin.id})">
+                <button type="button" class="admin-agent-row ${currentAdminChatId === admin.id ? 'active' : ''} ${onlineInternalUserIds.has(admin.id) ? 'online' : ''}" onclick="selectAdminAgent(${admin.id})">
                     <strong>
                         <span class="admin-agent-dot"></span>${escapeHtml(admin.name || 'Admin')}
-                        <span class="agent-chat-unread" style="${Number(adminUnreadCounts[admin.id] || 0) > 0 ? 'display:flex' : ''}">${Number(adminUnreadCounts[admin.id] || 0)}</span>
-                    </strong>
-                    <div class="admin-agent-meta">
                         <span class="admin-agent-role">${escapeHtml(admin.role || 'team')}</span>
                         ${onlineInternalUserIds.has(admin.id) ? '<span class="admin-agent-online">Online</span>' : ''}
-                    </div>
+                        <span class="agent-chat-unread" style="${Number(adminUnreadCounts[admin.id] || 0) > 0 ? 'display:flex' : ''}">${Number(adminUnreadCounts[admin.id] || 0)}</span>
+                    </strong>
                     <small>${escapeHtml(admin.email || '')}</small>
                 </button>
             `).join('');
