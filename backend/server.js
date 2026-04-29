@@ -4,6 +4,7 @@ const socketIO = require('socket.io');
 const { Sequelize, DataTypes, Op } = require('sequelize');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
@@ -44,6 +45,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../admin-panel'), { index: false }));
 app.use('/frontend', express.static(path.join(__dirname, '../frontend')));
+
+const frontendDistPath = path.join(__dirname, '../frontend/dist');
+const frontendDistIndex = path.join(frontendDistPath, 'index.html');
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+}
+
+function sendFrontendApp(res) {
+  if (fs.existsSync(frontendDistIndex)) {
+    return res.sendFile(frontendDistIndex);
+  }
+
+  return res.sendFile(path.join(__dirname, '../frontend/index.html'));
+}
 
 // MySQL Connection
 const sequelize = new Sequelize(
@@ -585,22 +600,22 @@ app.get('/api/threads/:threadId/messages', async (req, res) => {
 
 // Serve static files
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/index.html'));
+  sendFrontendApp(res);
 });
 app.get('/about', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/about.html'));
+  sendFrontendApp(res);
 });
 app.get('/contact', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/contact.html'));
+  sendFrontendApp(res);
 });
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/login.html'));
+  sendFrontendApp(res);
 });
 app.get('/terms', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/terms.html'));
+  sendFrontendApp(res);
 });
 app.get('/privacy', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/privacy.html'));
+  sendFrontendApp(res);
 });
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '../admin-panel/index.html'));

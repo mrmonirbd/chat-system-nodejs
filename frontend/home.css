@@ -1,0 +1,250 @@
+.hero {
+    padding: 72px 0 56px;
+}
+
+.hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+    gap: 42px;
+    align-items: center;
+}
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid #cfe1db;
+    border-radius: 999px;
+    background: #fff;
+    color: #166b60;
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 18px;
+}
+
+h1 {
+    font-size: clamp(40px, 6vw, 68px);
+    line-height: 1;
+    letter-spacing: 0;
+    max-width: 760px;
+}
+
+.hero-copy {
+    margin-top: 20px;
+    max-width: 620px;
+    font-size: 18px;
+    color: #47645b;
+}
+
+.hero-actions {
+    margin-top: 28px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.hero-panel {
+    width: 100%;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #dce9e3;
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(16, 32, 27, 0.12);
+    overflow: hidden;
+}
+
+.panel-top {
+    background: #11998e;
+    color: #fff;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.agent {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    min-width: 0;
+}
+
+.agent-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
+
+.status {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    opacity: 0.95;
+    white-space: nowrap;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 4px rgba(34,197,94,0.22);
+    flex: 0 0 auto;
+}
+
+.chat-preview {
+    padding: 18px;
+    background: #f8fbfa;
+    min-height: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.bubble {
+    max-width: 76%;
+    padding: 11px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+}
+
+.bubble-left {
+    background: #e9f1ee;
+    color: #17342e;
+    border-bottom-left-radius: 4px;
+}
+
+.bubble-right {
+    align-self: flex-end;
+    background: #11998e;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+
+.quick-row {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 18px;
+    border-top: 1px solid #dce9e3;
+}
+
+.quick-chip {
+    background: #fff;
+    border: 1px solid #cfe1db;
+    color: #31524a;
+    padding: 7px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+section {
+    padding: 64px 0;
+}
+
+.section-heading {
+    max-width: 680px;
+    margin-bottom: 28px;
+}
+
+.section-heading h2 {
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.1;
+    margin-bottom: 12px;
+}
+
+.section-heading p {
+    color: #526b64;
+    font-size: 17px;
+}
+
+.feature-grid,
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+}
+
+.card {
+    background: #fff;
+    border: 1px solid #dce9e3;
+    border-radius: 14px;
+    padding: 22px;
+}
+
+.card h3 {
+    font-size: 19px;
+    margin-bottom: 8px;
+}
+
+.card p {
+    color: #526b64;
+}
+
+.price {
+    font-size: 34px;
+    font-weight: 900;
+    margin: 14px 0 8px;
+    color: #0f766e;
+}
+
+.contact-band {
+    background: #10201b;
+    color: #fff;
+    border-radius: 18px;
+    padding: 30px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 20px;
+    align-items: center;
+}
+
+.contact-band p {
+    color: #c8d8d2;
+    margin-top: 8px;
+}
+
+@media (max-width: 860px) {
+    .hero {
+        padding-top: 48px;
+    }
+
+    .hero-grid,
+    .contact-band {
+        grid-template-columns: 1fr;
+    }
+
+    .feature-grid,
+    .pricing-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 520px) {
+    .hero {
+        padding: 42px 0 44px;
+    }
+
+    .panel-top {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .chat-preview {
+        min-height: 300px;
+    }
+
+    .bubble {
+        max-width: 88%;
+    }
+}
