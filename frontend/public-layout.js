@@ -8,19 +8,19 @@
     }
 
     function navLink(href, label, activePath) {
-        const activeClass = activePath && isActive(activePath) ? 'font-extrabold text-teal-700' : '';
+        const activeClass = activePath && isActive(activePath) ? 'nav-link-active' : '';
         return `<a class="${activeClass}" href="${href}">${label}</a>`;
     }
 
     function mobileLink(href, label, activePath) {
-        const activeClass = activePath && isActive(activePath) ? 'bg-teal-50 text-teal-700' : 'hover:bg-teal-50';
-        return `<a class="rounded-lg px-3 py-2 ${activeClass}" href="${href}">${label}</a>`;
+        const activeClass = activePath && isActive(activePath) ? 'mobile-menu-link-active' : '';
+        return `<a class="mobile-menu-link ${activeClass}" href="${href}">${label}</a>`;
     }
 
     window.togglePublicMenu = function togglePublicMenu() {
         const menu = document.getElementById('mobileMenu');
         if (!menu) return;
-        menu.classList.toggle('hidden');
+        menu.classList.toggle('is-hidden');
     };
 
     function renderHeader() {
@@ -47,18 +47,18 @@
                     <div class="nav-actions">
                         <a class="btn btn-primary" href="/login">Login</a>
                     </div>
-                    <button type="button" class="hamburger-button items-center justify-center w-11 h-11 rounded-lg border border-teal-100 bg-white text-teal-700 shadow-sm" onclick="togglePublicMenu()" aria-label="Open menu">
-                        <span class="text-2xl leading-none">☰</span>
+                    <button type="button" class="hamburger-button" onclick="togglePublicMenu()" aria-label="Open menu">
+                        <span>☰</span>
                     </button>
                 </nav>
-                <div id="mobileMenu" class="container hidden pb-4">
-                    <div class="rounded-xl border border-teal-100 bg-white p-3 shadow-lg flex flex-col gap-2 text-sm font-semibold text-slate-700">
+                <div id="mobileMenu" class="container mobile-menu is-hidden">
+                    <div class="mobile-menu-panel">
                         ${mobileLink('/', 'Home', '/')}
                         ${mobileLink('/about', 'About', '/about')}
                         ${mobileLink(featuresHref, 'Features')}
                         ${mobileLink(pricingHref, 'Pricing')}
                         ${mobileLink('/contact', 'Contact', '/contact')}
-                        <a class="rounded-lg px-3 py-2 bg-teal-600 text-white text-center" href="/login">Login</a>
+                        <a class="mobile-login-link" href="/login">Login</a>
                     </div>
                 </div>
             </header>
