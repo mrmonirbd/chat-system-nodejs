@@ -11,10 +11,17 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
 const { v4: uuidv4 } = require('uuid');
+const next = require('next');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const server = http.createServer(app);
+const frontendDir = path.join(__dirname, '../frontend');
+const nextApp = next({
+  dev: process.env.NODE_ENV !== 'production',
+  dir: frontendDir
+});
+const nextHandle = nextApp.getRequestHandler();
 
 // Socket.IO with CORS
 // Socket.IO with full CORS
@@ -46,22 +53,7 @@ app.use(cors({
 app.options('*', cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../frontend/admin-panel'), { index: false }));
 app.use('/frontend', express.static(path.join(__dirname, '../frontend')));
-
-const frontendDistPath = path.join(__dirname, '../frontend/dist');
-const frontendDistIndex = path.join(frontendDistPath, 'index.html');
-if (fs.existsSync(frontendDistPath)) {
-  app.use(express.static(frontendDistPath));
-}
-
-function sendFrontendApp(res) {
-  if (fs.existsSync(frontendDistIndex)) {
-    return res.sendFile(frontendDistIndex);
-  }
-
-  return res.sendFile(path.join(__dirname, '../frontend/index.html'));
-}
 
 function createMailTransport() {
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
@@ -851,10 +843,27 @@ app.post('/api/auth/change-password', authMiddleware, async (req, res) => {
 app.post('/api/sites/create', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-    const { name, domain } = req.body;
+    const name = String(req.body.name || '').trim();
+    const domain = String(req.body.domain || '').trim().toLowerCase();
+
+    if (!name || !domain) {
+      return res.status(400).json({ error: 'Site name and domain are required' });
+    }
+
+    const existingSite = await Site.findOne({ where: { domain } });
+    if (existingSite) {
+      return res.status(409).json({ error: 'This domain already exists. Please use a different domain.' });
+    }
+
     const site = await Site.create({ name, domain, apiKey: uuidv4() });
     res.json({ site, apiKey: site.apiKey });
   } catch (err) {
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      return res.status(409).json({ error: 'This domain already exists. Please use a different domain.' });
+    }
+    if (err.name === 'SequelizeValidationError') {
+      return res.status(400).json({ error: err.errors?.[0]?.message || 'Invalid site information' });
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -1292,60 +1301,8 @@ app.get('/api/threads/:threadId/messages', async (req, res) => {
   }
 });
 
-// Serve static files
-app.get('/', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/about', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/contact', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/login', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/reset-password', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/terms', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/privacy', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/admin', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/admin/analytics', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/admin/chat', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/admin/agent-chat', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/admin/sites', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/admin/support-agents', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/admin/api-keys', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/admin/users', (req, res) => {
-  sendFrontendApp(res);
-});
 app.get('/dashboard', (req, res) => {
   res.redirect('/admin');
-});
-app.get('/support-panel', (req, res) => {
-  sendFrontendApp(res);
-});
-app.get('/support-panel/agent-chat', (req, res) => {
-  sendFrontendApp(res);
 });
 app.get('/widget.js', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/widget.js'));
@@ -1770,10 +1727,17 @@ socket.on('visitor-message', async (data) => {
 });
 
 
+app.all('*', (req, res) => nextHandle(req, res));
+
 // Start Server
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Admin Panel: http://localhost:${PORT}/admin`);
-  console.log(`Support Panel: http://localhost:${PORT}/support-panel`);
+nextApp.prepare().then(() => {
+  server.listen(PORT, () => {
+    console.log(`Next + API server running on http://localhost:${PORT}`);
+    console.log(`Admin Panel: http://localhost:${PORT}/admin`);
+    console.log(`Support Panel: http://localhost:${PORT}/support-panel`);
+  });
+}).catch((err) => {
+  console.error('Failed to start Next server:', err);
+  process.exit(1);
 });

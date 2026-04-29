@@ -1,4 +1,4 @@
-import type { RoutePath } from '../App';
+import type { RoutePath } from '../routes';
 import { ChatPreview } from '../components/ChatPreview';
 import { Layout } from '../components/Layout';
 import { AppLink } from '../components/Link';

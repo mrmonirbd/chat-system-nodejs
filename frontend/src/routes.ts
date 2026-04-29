@@ -1,0 +1,18 @@
+export type RoutePath =
+  | '/'
+  | '/about'
+  | '/contact'
+  | '/login'
+  | '/reset-password'
+  | '/admin'
+  | '/admin/analytics'
+  | '/admin/chat'
+  | '/admin/agent-chat'
+  | '/admin/sites'
+  | '/admin/support-agents'
+  | '/admin/api-keys'
+  | '/admin/users'
+  | '/support-panel'
+  | '/support-panel/agent-chat'
+  | '/terms'
+  | '/privacy';

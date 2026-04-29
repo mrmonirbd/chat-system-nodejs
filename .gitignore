@@ -45,6 +45,8 @@ Thumbs.db
 # Build files
 dist/
 build/
+.next/
+out/
 *.tsbuildinfo
 
 # Temporary files

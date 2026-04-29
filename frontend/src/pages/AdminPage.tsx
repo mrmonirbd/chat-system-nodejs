@@ -391,33 +391,43 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
   async function createSite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    await fetchJson(`${API_URL}/sites/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: formData.get('name'),
-        domain: formData.get('domain')
-      })
-    });
-    event.currentTarget.reset();
-    loadAll();
+    try {
+      await fetchJson(`${API_URL}/sites/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.get('name'),
+          domain: formData.get('domain')
+        })
+      });
+      event.currentTarget.reset();
+      setError('');
+      loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create site');
+    }
   }
 
   async function createSupport(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    await fetchJson(`${API_URL}/sites/add-support`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        siteId: formData.get('siteId'),
-        name: formData.get('name'),
-        email: formData.get('email'),
-        password: formData.get('password')
-      })
-    });
-    event.currentTarget.reset();
-    loadAll();
+    try {
+      await fetchJson(`${API_URL}/sites/add-support`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteId: formData.get('siteId'),
+          name: formData.get('name'),
+          email: formData.get('email'),
+          password: formData.get('password')
+        })
+      });
+      event.currentTarget.reset();
+      setError('');
+      loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add support agent');
+    }
   }
 
   function logout() {

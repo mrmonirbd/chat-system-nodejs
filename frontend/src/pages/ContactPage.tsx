@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import type { RoutePath } from '../App';
+import type { RoutePath } from '../routes';
 import { Layout } from '../components/Layout';
 
 type PageProps = {

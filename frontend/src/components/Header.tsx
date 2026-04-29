@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { RoutePath } from '../App';
+import type { RoutePath } from '../routes';
 import { AppLink } from './Link';
 
 type HeaderProps = {

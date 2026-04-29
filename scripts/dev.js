@@ -5,11 +5,6 @@ const commands = [
     name: 'backend',
     command: 'npm',
     args: ['run', 'dev', '--workspace', 'backend']
-  },
-  {
-    name: 'frontend',
-    command: 'npm',
-    args: ['run', 'dev', '--workspace', 'frontend']
   }
 ];
 

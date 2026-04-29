@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { RoutePath } from '../App';
+import type { RoutePath } from '../routes';
 import { Footer } from './Footer';
 import { Header } from './Header';
 
