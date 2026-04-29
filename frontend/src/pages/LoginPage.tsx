@@ -25,6 +25,7 @@ export function LoginPage({ navigate }: LoginPageProps) {
   const [resetStatus, setResetStatus] = useState<'idle' | 'checking' | 'valid' | 'invalid'>(resetToken ? 'checking' : 'idle');
   const [resetExpiresAt, setResetExpiresAt] = useState('');
   const [resetSecondsLeft, setResetSecondsLeft] = useState(0);
+  const [isForgotSubmitting, setIsForgotSubmitting] = useState(false);
 
   useEffect(() => {
     if (!resetToken) return;
@@ -156,6 +157,8 @@ export function LoginPage({ navigate }: LoginPageProps) {
 
   async function submitForgotPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isForgotSubmitting) return;
+
     setMessage('');
 
     const formData = new FormData(event.currentTarget);
@@ -166,6 +169,8 @@ export function LoginPage({ navigate }: LoginPageProps) {
       setMessageType('error');
       return;
     }
+
+    setIsForgotSubmitting(true);
 
     try {
       const res = await fetch(`${API_URL}/auth/forgot-password`, {
@@ -180,6 +185,8 @@ export function LoginPage({ navigate }: LoginPageProps) {
       setMessageType('success');
     } catch (error) {
       showError(error);
+    } finally {
+      setIsForgotSubmitting(false);
     }
   }
 
@@ -272,9 +279,12 @@ export function LoginPage({ navigate }: LoginPageProps) {
           <form className="auth-form" onSubmit={submitForgotPassword}>
             <div className="field">
               <label htmlFor="forgotEmail">Email</label>
-              <input id="forgotEmail" name="email" type="email" required placeholder="you@example.com" />
+              <input id="forgotEmail" name="email" type="email" required placeholder="you@example.com" disabled={isForgotSubmitting} />
             </div>
-            <button className="auth-btn" type="submit">Submit</button>
+            <button className="auth-btn auth-btn-content" type="submit" disabled={isForgotSubmitting}>
+              {isForgotSubmitting && <span className="auth-spinner" aria-hidden="true"></span>}
+              <span>{isForgotSubmitting ? 'Sending...' : 'Submit'}</span>
+            </button>
             <p className="auth-switch">
               Remember your password?{' '}
               <button
