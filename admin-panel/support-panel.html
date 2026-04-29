@@ -60,7 +60,11 @@
             padding: 6px 10px;
             font-size: 12px;
             transition: all 0.2s ease;
-            white-space: nowrap;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            text-align: left;
+            max-width: 220px;
+            line-height: 1.3;
         }
         .quick-reply-chip:hover:not(:disabled) {
             border-color: #14b8a6;
@@ -76,10 +80,26 @@
             flex-wrap: wrap;
             gap: 8px;
             align-items: center;
-            max-height: 92px;
+            overflow: visible;
+            padding: 0 12px 8px 12px;
+        }
+        .custom-quick-replies-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: flex-start;
+            max-height: 72px;
             overflow-y: auto;
             overflow-x: hidden;
-            padding: 0 4px 10px 0;
+            padding: 0 12px 8px 12px;
+        }
+        .quick-replies-label {
+            padding: 0 12px 6px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
         .quick-reply-settings {
             position: absolute;
@@ -106,6 +126,13 @@
             box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
             z-index: 10000;
             pointer-events: none;
+        }
+        .quick-delete-confirm {
+            background: #fff7ed;
+            border: 1px solid #fed7aa;
+            border-radius: 8px;
+            padding: 8px;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -165,8 +192,9 @@
                             <button type="button" class="quick-reply-chip" data-reply="Could you please share a little more detail?" data-tooltip="Could you please share a little more detail?" onclick="insertQuickReply(this.dataset.reply)" disabled>More detail</button>
                             <button type="button" class="quick-reply-chip" data-reply="Please wait a moment while I look into this." data-tooltip="Please wait a moment while I look into this." onclick="insertQuickReply(this.dataset.reply)" disabled>Please wait</button>
                             <button type="button" class="quick-reply-chip" data-reply="This should be resolved now. Please check and let me know." data-tooltip="This should be resolved now. Please check and let me know." onclick="insertQuickReply(this.dataset.reply)" disabled>Resolved</button>
-                            <span id="customQuickReplies" class="flex gap-2"></span>
                         </div>
+                        <div class="quick-replies-label">Custom replies</div>
+                        <div id="customQuickReplies" class="custom-quick-replies-list"></div>
                         <div id="quickReplySettings" class="quick-reply-settings hidden p-3">
                             <div class="flex items-center justify-between gap-3 mb-3">
                                 <div>
@@ -480,6 +508,7 @@ function initSocket() {
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendButton').disabled = false;
             setQuickRepliesDisabled(false);
+            renderCustomQuickReplies();
             
             if (socket && socket.connected) {
                 socket.emit('join-thread', threadId, currentAgent?.id);
@@ -551,7 +580,7 @@ function initSocket() {
 
                     tooltipEl.style.left = `${left}px`;
                     tooltipEl.style.top = `${top}px`;
-                }, 3000);
+                }, 1000);
             });
 
             document.addEventListener('mouseout', (event) => {
@@ -585,7 +614,7 @@ function initSocket() {
                             <button type="button" class="text-gray-400 hover:text-teal-600" onclick="startEditQuickReply(${reply.id})" title="Edit quick reply">
                                 <i class="fas fa-pen"></i>
                             </button>
-                            <button type="button" class="text-gray-400 hover:text-red-500" onclick="deleteCustomQuickReply(${reply.id})" title="Delete quick reply">
+                            <button type="button" class="text-gray-400 hover:text-red-500" onclick="showDeleteQuickReplyConfirm(${reply.id})" title="Delete quick reply">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -653,6 +682,22 @@ function initSocket() {
             document.getElementById(`edit-quick-reply-${replyId}`)?.focus();
         }
 
+        function showDeleteQuickReplyConfirm(replyId) {
+            const row = document.getElementById(`quick-reply-row-${replyId}`);
+            if (!row || row.querySelector('.quick-delete-confirm')) return;
+
+            const confirmBox = document.createElement('div');
+            confirmBox.className = 'quick-delete-confirm';
+            confirmBox.innerHTML = `
+                <p class="text-xs text-orange-800 mb-2">Delete this quick reply?</p>
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="px-2 py-1 text-xs rounded bg-white border border-orange-200 text-gray-600 hover:bg-orange-50" onclick="renderQuickReplySettings()">Cancel</button>
+                    <button type="button" class="px-2 py-1 text-xs rounded bg-red-500 text-white hover:bg-red-600" onclick="deleteCustomQuickReply(${replyId})">Delete</button>
+                </div>
+            `;
+            row.appendChild(confirmBox);
+        }
+
         async function saveEditedQuickReply(replyId) {
             const input = document.getElementById(`edit-quick-reply-${replyId}`);
             const trimmedReply = input?.value.trim();
@@ -699,7 +744,7 @@ function initSocket() {
         }
 
         function setQuickRepliesDisabled(isDisabled) {
-            document.querySelectorAll('#quickReplies button[data-reply]').forEach(button => {
+            document.querySelectorAll('#quickReplies button[data-reply], #customQuickReplies button[data-reply]').forEach(button => {
                 button.disabled = isDisabled;
             });
         }
