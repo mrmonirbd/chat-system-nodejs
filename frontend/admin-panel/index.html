@@ -712,7 +712,7 @@
     function logout() {
         localStorage.removeItem('token');
         localStorage.removeItem('adminName');
-        location.reload();
+        window.location.href = '/login';
     }
 
     let adminSocket = null;

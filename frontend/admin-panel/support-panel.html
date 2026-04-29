@@ -817,7 +817,7 @@ function initSocket() {
             localStorage.removeItem('supportToken');
             localStorage.removeItem('agentName');
             if (socket) socket.disconnect();
-            window.location.href = '/support-panel';
+            window.location.href = '/login';
         }
         
         document.addEventListener('keypress', (e) => {
