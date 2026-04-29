@@ -6,6 +6,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const os = require('os');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
@@ -98,6 +99,67 @@ function hashResetToken(token) {
 
 function getAppUrl() {
   return (process.env.APP_URL || process.env.FRONTEND_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
+}
+
+function getRangeDays(range) {
+  const ranges = {
+    '7d': 7,
+    '30d': 30,
+    '6m': 183,
+    '1y': 365
+  };
+
+  return ranges[range] || 30;
+}
+
+function formatDateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function buildDailySeries(days, rows) {
+  const counts = new Map(rows.map(row => {
+    const key = row.date instanceof Date ? formatDateKey(row.date) : String(row.date).slice(0, 10);
+    return [key, Number(row.count || 0)];
+  }));
+  const labels = [];
+  const data = [];
+
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - i);
+    const key = formatDateKey(date);
+    labels.push(key);
+    data.push(counts.get(key) || 0);
+  }
+
+  return { labels, data };
+}
+
+function buildCumulativeDailySeries(days, rows, startingTotal) {
+  const series = buildDailySeries(days, rows);
+  let runningTotal = Number(startingTotal || 0);
+
+  return {
+    labels: series.labels,
+    data: series.data.map(count => {
+      runningTotal += count;
+      return runningTotal;
+    })
+  };
+}
+
+function getConnectedSiteCount() {
+  let count = 0;
+  for (const [roomName, sockets] of io.sockets.adapter.rooms) {
+    if (roomName.startsWith('site-') && sockets.size > 0) count += 1;
+  }
+  return count;
+}
+
+function getCpuUsagePercent() {
+  const cpuCount = Math.max(os.cpus().length, 1);
+  return Math.min(100, Math.round((os.loadavg()[0] / cpuCount) * 100));
 }
 
 async function findValidPasswordResetToken(token, email) {
@@ -655,6 +717,75 @@ app.get('/api/support-agents/count', authMiddleware, async (req, res) => {
     });
     res.json({ count: agents.length, agents });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/analytics', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+
+    const range = String(req.query.range || '30d');
+    const days = getRangeDays(range);
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (days - 1));
+
+    const dateExpr = sequelize.fn('DATE', sequelize.col('createdAt'));
+    const countExpr = sequelize.fn('COUNT', sequelize.col('id'));
+
+    const [totalSites, supportAgents, activeChats, totalMessages, siteBaseline, supportBaseline, messageRows, siteRows, supportRows] = await Promise.all([
+      Site.count(),
+      User.count({ where: { role: 'support' } }),
+      Thread.count({ where: { status: { [Op.in]: ['open', 'pending'] } } }),
+      Message.count(),
+      Site.count({ where: { createdAt: { [Op.lt]: since } } }),
+      User.count({ where: { role: 'support', createdAt: { [Op.lt]: since } } }),
+      Message.findAll({
+        attributes: [[dateExpr, 'date'], [countExpr, 'count']],
+        where: { createdAt: { [Op.gte]: since } },
+        group: [dateExpr],
+        order: [[dateExpr, 'ASC']],
+        raw: true
+      }),
+      Site.findAll({
+        attributes: [[dateExpr, 'date'], [countExpr, 'count']],
+        where: { createdAt: { [Op.gte]: since } },
+        group: [dateExpr],
+        order: [[dateExpr, 'ASC']],
+        raw: true
+      }),
+      User.findAll({
+        attributes: [[dateExpr, 'date'], [countExpr, 'count']],
+        where: {
+          role: 'support',
+          createdAt: { [Op.gte]: since }
+        },
+        group: [dateExpr],
+        order: [[dateExpr, 'ASC']],
+        raw: true
+      })
+    ]);
+
+    res.json({
+      range,
+      days,
+      totals: {
+        cpuUsage: getCpuUsagePercent(),
+        connectedSites: getConnectedSiteCount(),
+        totalSites,
+        supportAgents,
+        activeChats,
+        totalMessages
+      },
+      charts: {
+        messages: buildDailySeries(days, messageRows),
+        sites: buildCumulativeDailySeries(days, siteRows, siteBaseline),
+        supportAgents: buildCumulativeDailySeries(days, supportRows, supportBaseline)
+      }
+    });
+  } catch (err) {
+    console.error('Admin analytics error:', err);
     res.status(500).json({ error: err.message });
   }
 });

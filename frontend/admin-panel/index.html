@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <style>
         * {
@@ -84,6 +85,33 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .range-btn {
+            border: 1px solid #dbe4ff;
+            color: #4f46e5;
+            background: #fff;
+            border-radius: 999px;
+            padding: 8px 12px;
+            font-size: 13px;
+            font-weight: 800;
+            transition: all 0.2s ease;
+        }
+
+        .range-btn.active,
+        .range-btn:hover {
+            background: #4f46e5;
+            color: #fff;
+            border-color: #4f46e5;
+        }
+
+        .chart-panel {
+            min-height: 340px;
+        }
+
+        .chart-panel canvas {
+            width: 100% !important;
+            height: 260px !important;
+        }
     </style>
 </head>
 <body>
@@ -111,54 +139,60 @@
             </div>
         </div>
 
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 fade-in">
-            <div class="bg-white rounded-2xl shadow-xl p-6 card-hover">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Total Sites</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-2" id="totalSites">0</p>
-                    </div>
-                    <div class="bg-blue-100 rounded-full p-3">
-                        <i class="fas fa-globe text-blue-600 text-2xl"></i>
-                    </div>
+        <!-- Analytics Dashboard -->
+        <div class="bg-white rounded-2xl shadow-xl p-5 mb-8 fade-in">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-5">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-chart-line text-indigo-600 mr-2"></i>Analytics</h2>
+                    <p class="text-gray-500 text-sm mt-1">CPU, connected sites, messages, sites, and support agent trends</p>
+                </div>
+                <div class="flex flex-wrap gap-2" id="rangeButtons">
+                    <button class="range-btn" data-range="7d" onclick="setAnalyticsRange('7d')">7 Day</button>
+                    <button class="range-btn active" data-range="30d" onclick="setAnalyticsRange('30d')">30 Day</button>
+                    <button class="range-btn" data-range="6m" onclick="setAnalyticsRange('6m')">6 Month</button>
+                    <button class="range-btn" data-range="1y" onclick="setAnalyticsRange('1y')">1 Year</button>
                 </div>
             </div>
-            
-            <div class="bg-white rounded-2xl shadow-xl p-6 card-hover">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Support Agents</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-2" id="totalAgents">0</p>
-                    </div>
-                    <div class="bg-green-100 rounded-full p-3">
-                        <i class="fas fa-headset text-green-600 text-2xl"></i>
-                    </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div class="bg-indigo-50 rounded-xl p-4">
+                    <p class="text-indigo-600 text-xs font-bold uppercase">CPU Usage</p>
+                    <p class="text-3xl font-bold text-gray-800 mt-2" id="cpuUsage">0%</p>
+                </div>
+                <div class="bg-emerald-50 rounded-xl p-4">
+                    <p class="text-emerald-600 text-xs font-bold uppercase">Connected Sites</p>
+                    <p class="text-3xl font-bold text-gray-800 mt-2" id="connectedSites">0</p>
+                </div>
+                <div class="bg-blue-50 rounded-xl p-4">
+                    <p class="text-blue-600 text-xs font-bold uppercase">Total Sites</p>
+                    <p class="text-3xl font-bold text-gray-800 mt-2" id="totalSites">0</p>
+                </div>
+                <div class="bg-green-50 rounded-xl p-4">
+                    <p class="text-green-600 text-xs font-bold uppercase">Support Agents</p>
+                    <p class="text-3xl font-bold text-gray-800 mt-2" id="totalAgents">0</p>
+                </div>
+                <div class="bg-yellow-50 rounded-xl p-4">
+                    <p class="text-yellow-600 text-xs font-bold uppercase">Active Chats</p>
+                    <p class="text-3xl font-bold text-gray-800 mt-2" id="activeChats">0</p>
+                </div>
+                <div class="bg-purple-50 rounded-xl p-4">
+                    <p class="text-purple-600 text-xs font-bold uppercase">Total Messages</p>
+                    <p class="text-3xl font-bold text-gray-800 mt-2" id="totalMessages">0</p>
                 </div>
             </div>
-            
-            <div class="bg-white rounded-2xl shadow-xl p-6 card-hover">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Active Chats</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-2" id="activeChats">0</p>
-                    </div>
-                    <div class="bg-yellow-100 rounded-full p-3">
-                        <i class="fas fa-comment-dots text-yellow-600 text-2xl"></i>
-                    </div>
-                </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 fade-in">
+            <div class="bg-white rounded-2xl shadow-xl p-5 chart-panel">
+                <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-message text-indigo-600 mr-2"></i>Messages</h3>
+                <canvas id="messagesChart"></canvas>
             </div>
-            
-            <div class="bg-white rounded-2xl shadow-xl p-6 card-hover">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-gray-500 text-sm font-medium">Total Messages</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-2" id="totalMessages">0</p>
-                    </div>
-                    <div class="bg-purple-100 rounded-full p-3">
-                        <i class="fas fa-envelope text-purple-600 text-2xl"></i>
-                    </div>
-                </div>
+            <div class="bg-white rounded-2xl shadow-xl p-5 chart-panel">
+                <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-globe text-blue-600 mr-2"></i>Total Site Growth</h3>
+                <canvas id="sitesChart"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow-xl p-5 chart-panel lg:col-span-2">
+                <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-headset text-green-600 mr-2"></i>Support Agent Growth</h3>
+                <canvas id="supportAgentsChart"></canvas>
             </div>
         </div>
 
@@ -264,6 +298,8 @@
     <script>
     const API_URL = 'http://localhost:3000/api';
     let token = localStorage.getItem('token');
+    let analyticsRange = '30d';
+    const analyticsCharts = {};
     
     // SweetAlert2 Helpers
     const showError = (message) => {
@@ -381,7 +417,7 @@
             loadDashboard();
             
             setInterval(() => {
-                loadStats();
+                loadAnalytics();
                 loadSites();
             }, 30000);
         }
@@ -394,8 +430,90 @@
     async function loadDashboard() {
         await Promise.all([
             loadSites(),
-            loadStats()
+            loadAnalytics()
         ]);
+    }
+
+    function setAnalyticsRange(range) {
+        analyticsRange = range;
+        document.querySelectorAll('#rangeButtons .range-btn').forEach(button => {
+            button.classList.toggle('active', button.dataset.range === range);
+        });
+        loadAnalytics();
+    }
+
+    function renderLineChart(chartId, label, labels, data, color) {
+        const ctx = document.getElementById(chartId);
+        if (!ctx || typeof Chart === 'undefined') return;
+
+        if (analyticsCharts[chartId]) {
+            analyticsCharts[chartId].destroy();
+        }
+
+        analyticsCharts[chartId] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label,
+                    data,
+                    borderColor: color,
+                    backgroundColor: `${color}22`,
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    pointRadius: labels.length > 60 ? 0 : 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            maxTicksLimit: 8,
+                            color: '#6b7280'
+                        },
+                        grid: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            color: '#6b7280'
+                        },
+                        grid: { color: '#eef2ff' }
+                    }
+                }
+            }
+        });
+    }
+
+    async function loadAnalytics() {
+        try {
+            const res = await fetch(`${API_URL}/admin/analytics?range=${analyticsRange}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to load analytics');
+
+            document.getElementById('cpuUsage').innerText = `${data.totals.cpuUsage}%`;
+            document.getElementById('connectedSites').innerText = data.totals.connectedSites;
+            document.getElementById('totalSites').innerText = data.totals.totalSites;
+            document.getElementById('totalAgents').innerText = data.totals.supportAgents;
+            document.getElementById('activeChats').innerText = data.totals.activeChats;
+            document.getElementById('totalMessages').innerText = data.totals.totalMessages;
+
+            renderLineChart('messagesChart', 'Messages', data.charts.messages.labels, data.charts.messages.data, '#4f46e5');
+            renderLineChart('sitesChart', 'Sites', data.charts.sites.labels, data.charts.sites.data, '#2563eb');
+            renderLineChart('supportAgentsChart', 'Support Agents', data.charts.supportAgents.labels, data.charts.supportAgents.data, '#16a34a');
+        } catch (err) {
+            console.error('Load analytics error:', err);
+            showError(err.message);
+        }
     }
     
     async function createSite() {
@@ -434,7 +552,7 @@
                 document.getElementById('siteName').value = '';
                 document.getElementById('siteDomain').value = '';
                 loadSites();
-                loadStats();
+                loadAnalytics();
             } else {
                 showError(data.error || 'Failed to create site');
             }
@@ -479,7 +597,7 @@
                 document.getElementById('supportName').value = '';
                 document.getElementById('supportEmail').value = '';
                 document.getElementById('supportPassword').value = '';
-                loadStats();
+                loadAnalytics();
             } else {
                 showError(data.error || 'Failed to add support agent');
             }
@@ -728,12 +846,12 @@ function initAdminSocket() {
     // লাইভ আপডেটের জন্য লিসেনার
     adminSocket.on('new-message', () => {
         console.log('📨 Admin: New message received, updating stats');
-        loadStats();  // স্ট্যাটস রিফ্রেশ
+        loadAnalytics();
     });
     
     adminSocket.on('new-thread', () => {
         console.log('🆕 Admin: New thread created');
-        loadStats();
+        loadAnalytics();
         loadSites();
     });
     
