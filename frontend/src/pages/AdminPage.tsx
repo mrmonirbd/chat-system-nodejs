@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 
 type AdminView = 'dashboard' | 'chat' | 'sites' | 'support' | 'apiKeys' | 'users';
 type AnalyticsRange = '1d' | '7d' | '30d' | '6m' | '1y';
+type AdminIconName = 'dashboard' | 'chat' | 'sites' | 'key' | 'support' | 'users' | 'logout';
 
 declare global {
   interface Window {
@@ -283,14 +284,14 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
       <aside className="admin-sidebar">
         <div className="admin-brand"><span className="admin-brand-icon">▣</span><strong>emilus</strong></div>
         <p className="admin-sidebar-title">Dashboard</p>
-        <button className={view === 'dashboard' ? 'active' : ''} onClick={() => goTo('/admin', 'dashboard')}>Default</button>
-        <button className={view === 'chat' ? 'active' : ''} onClick={() => goTo('/admin/chat', 'chat')}>Chat</button>
-        <button className={view === 'sites' ? 'active' : ''} onClick={() => goTo('/admin/sites', 'sites')}>Sites</button>
-        <button className={view === 'apiKeys' ? 'active' : ''} onClick={() => goTo('/admin/api-keys', 'apiKeys')}>API Keys</button>
-        <button className={view === 'support' ? 'active' : ''} onClick={() => goTo('/admin/support-agents', 'support')}>Support Agents</button>
-        <button className={view === 'users' ? 'active' : ''} onClick={() => goTo('/admin/users', 'users')}>Users</button>
+        <NavButton icon="dashboard" active={view === 'dashboard'} onClick={() => goTo('/admin', 'dashboard')}>Default</NavButton>
+        <NavButton icon="chat" active={view === 'chat'} onClick={() => goTo('/admin/chat', 'chat')}>Chat</NavButton>
+        <NavButton icon="sites" active={view === 'sites'} onClick={() => goTo('/admin/sites', 'sites')}>Sites</NavButton>
+        <NavButton icon="key" active={view === 'apiKeys'} onClick={() => goTo('/admin/api-keys', 'apiKeys')}>API Keys</NavButton>
+        <NavButton icon="support" active={view === 'support'} onClick={() => goTo('/admin/support-agents', 'support')}>Support Agents</NavButton>
+        <NavButton icon="users" active={view === 'users'} onClick={() => goTo('/admin/users', 'users')}>Users</NavButton>
         <p className="admin-sidebar-title">System</p>
-        <button onClick={logout}>Logout</button>
+        <NavButton icon="logout" onClick={logout}>Logout</NavButton>
       </aside>
 
       <main className="admin-main">
@@ -471,6 +472,33 @@ export function AdminPage({ initialView, navigate }: AdminPageProps) {
         {view === 'users' && <DataTable headers={['Name', 'Email', 'Role', 'Site', 'Status']} rows={users.map(user => [user.name, user.email, user.role, user.siteId || '-', user.isActive ? 'Active' : 'Inactive'])} />}
       </main>
     </div>
+  );
+}
+
+function NavButton({ icon, active = false, onClick, children }: { icon: AdminIconName; active?: boolean; onClick: () => void; children: string }) {
+  return (
+    <button className={active ? 'active' : ''} onClick={onClick}>
+      <AdminIcon name={icon} />
+      <span>{children}</span>
+    </button>
+  );
+}
+
+function AdminIcon({ name }: { name: AdminIconName }) {
+  const paths: Record<AdminIconName, string[]> = {
+    dashboard: ['M3 13h8V3H3v10Z', 'M13 21h8V11h-8v10Z', 'M3 21h8v-6H3v6Z', 'M13 9h8V3h-8v6Z'],
+    chat: ['M21 12a8 8 0 0 1-8 8H7l-4 3v-5a8 8 0 1 1 18-6Z'],
+    sites: ['M4 5h16v12H4V5Z', 'M8 21h8', 'M12 17v4'],
+    key: ['M21 7a5 5 0 0 1-7.8 4.1L5 19H2v-3l7.9-7.9A5 5 0 1 1 21 7Z', 'M15 7h.01'],
+    support: ['M12 3a7 7 0 0 0-7 7v4', 'M19 14v-4a7 7 0 0 0-7-7', 'M5 14h3v5H5v-5Z', 'M16 14h3v5h-3v-5Z', 'M9 21h3a4 4 0 0 0 4-4'],
+    users: ['M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2', 'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z', 'M22 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'],
+    logout: ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'M16 17l5-5-5-5', 'M21 12H9']
+  };
+
+  return (
+    <svg className="admin-nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+      {paths[name].map(path => <path key={path} d={path} />)}
+    </svg>
   );
 }
 

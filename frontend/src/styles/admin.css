@@ -44,10 +44,26 @@
     background: transparent;
     color: #cbd5e1;
     display: flex;
+    align-items: center;
+    gap: 12px;
     padding: 10px 12px;
     border-radius: 8px;
     font-weight: 800;
     cursor: pointer;
+}
+
+.admin-nav-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+}
+
+.admin-nav-icon path {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .admin-sidebar button:hover,
