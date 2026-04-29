@@ -414,8 +414,7 @@ function initSocket() {
     try {
         console.log('🔄 Loading threads for all sites...');
         
-        // নতুন API কল (সব সাইটের থ্রেড)
-        const res = await fetch(`${API_URL}/threads/all`, {
+        const res = await fetch(`${API_URL}/threads/all?days=7&limit=200`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         let threads = await res.json();
@@ -423,7 +422,7 @@ function initSocket() {
         const threadsList = document.getElementById('threadsList');
         const threadCount = document.getElementById('threadCount');
         
-        threadCount.innerText = `${threads.length} threads`;
+        threadCount.innerText = `${threads.length} recent threads`;
         
         if (threads.length === 0) {
             threadsList.innerHTML = `<div class="text-center py-8 text-gray-500"><i class="fas fa-inbox text-3xl mb-2"></i><p>No conversations yet</p></div>`;
@@ -435,28 +434,6 @@ function initSocket() {
             for (let thread of threads) {
                 socket.emit('join-thread', thread.id, currentAgent?.id);
                 console.log('✅ Auto-joined thread:', thread.id);
-            }
-        }
-        
-        // Get last message for each thread
-        for (let thread of threads) {
-            try {
-                const msgRes = await fetch(`${API_URL}/threads/${thread.id}/messages`);
-                const messages = await msgRes.json();
-                if (messages.length > 0) {
-                    const lastMsg = messages[messages.length - 1];
-                    thread.lastMsg = lastMsg.message;
-                    thread.lastMsgTime = lastMsg.createdAt;
-                    thread.lastMsgId = lastMsg.id;
-                } else {
-                    thread.lastMsg = 'No messages';
-                    thread.lastMsgTime = thread.lastMessageAt;
-                    thread.lastMsgId = null;
-                }
-            } catch(e) {
-                thread.lastMsg = 'Click to view';
-                thread.lastMsgTime = thread.lastMessageAt;
-                thread.lastMsgId = null;
             }
         }
         

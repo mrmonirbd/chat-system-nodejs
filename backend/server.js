@@ -1,7 +1,7 @@
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
-const { Sequelize, DataTypes } = require('sequelize');
+const { Sequelize, DataTypes, Op } = require('sequelize');
 const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
@@ -526,16 +526,48 @@ app.get('/api/threads/all', authMiddleware, async (req, res) => {
         if (user.role !== 'support') {
             return res.status(403).json({ error: 'Support only' });
         }
+
+        const days = Math.min(Math.max(parseInt(req.query.days, 10) || 7, 1), 30);
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500);
+        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
         
-        // Get all threads from all sites assigned to this support agent
         const threads = await Thread.findAll({
             where: { 
-                siteId: user.siteId  // Agent only has access to their assigned site
+                siteId: user.siteId,
+                lastMessageAt: { [Op.gte]: since }
             },
-            order: [['lastMessageAt', 'DESC']]
+            order: [['lastMessageAt', 'DESC']],
+            limit
+        });
+
+        const threadIds = threads.map(thread => thread.id);
+        const latestMessagesByThreadId = new Map();
+
+        if (threadIds.length > 0) {
+            const latestMessages = await Message.findAll({
+                where: { threadId: { [Op.in]: threadIds } },
+                order: [['createdAt', 'DESC']]
+            });
+
+            for (const message of latestMessages) {
+                if (!latestMessagesByThreadId.has(message.threadId)) {
+                    latestMessagesByThreadId.set(message.threadId, message);
+                }
+            }
+        }
+
+        const responseThreads = threads.map(thread => {
+            const data = thread.toJSON();
+            const lastMessage = latestMessagesByThreadId.get(thread.id);
+
+            data.lastMsg = lastMessage?.message || 'No messages';
+            data.lastMsgTime = lastMessage?.createdAt || data.lastMessageAt;
+            data.lastMsgId = lastMessage?.id || null;
+
+            return data;
         });
         
-        res.json(threads);
+        res.json(responseThreads);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
