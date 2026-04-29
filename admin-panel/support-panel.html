@@ -23,12 +23,35 @@
         .thread-item.active { background: linear-gradient(135deg, #e0f2e9 0%, #c8e6d9 100%); border-left: 4px solid #11998e; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.3s ease-out; }
-        .typing-indicator span { height: 8px; width: 8px; background: #11998e; border-radius: 50%; display: inline-block; animation: typing 1.4s infinite ease-in-out; }
-        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes typing { 0%, 60%, 100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-10px); opacity: 1; } }
         .notification-badge { background: #ef4444; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; margin-left: 8px; animation: pulse 1s infinite; }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+        
+        /* Thread update indicator */
+        .thread-updating {
+            animation: threadPulse 0.5s ease-out;
+        }
+        @keyframes threadPulse {
+            0% { background: #ffffff; }
+            50% { background: #bae6fd; }
+            100% { background: #ffffff; }
+        }
+        .thread-badge-new {
+            background: #3b82f6;
+            color: white;
+            border-radius: 20px;
+            padding: 2px 8px;
+            font-size: 10px;
+            margin-left: 8px;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .last-msg-updated {
+            font-weight: bold;
+            color: #3b82f6 !important;
+        }
     </style>
 </head>
 <body>
@@ -96,7 +119,6 @@
         let currentAgent = null;
         let currentSiteId = null;
         let typingTimeout = null;        
-        // Track displayed message IDs
         let displayedMessageIds = new Set();
         let unreadCounts = {};
         
@@ -122,6 +144,7 @@
                         localStorage.setItem('agentName', data.user.name);
                         token = data.token;
                         currentAgent = data.user;
+                        currentSiteId = data.user.siteId;
                         document.getElementById('agentName').innerText = data.user.name;
                         initSocket();
                         loadAgentDetails();
@@ -182,97 +205,107 @@
             } catch (err) { console.error(err); }
         }
         
-        function initSocket() {
+
+function initSocket() {
     socket = io('http://localhost:3000');
 
     socket.on('connect', () => {
         console.log('✅ Socket connected, ID:', socket.id);
+
         socket.emit('support-auth', token);
-        if (currentSiteId) socket.emit('join-site', currentSiteId);
-        
+
+        if (currentSiteId) {
+            socket.emit('join-site', currentSiteId);
+            console.log('✅ Joined site room:', currentSiteId);
+        } else {
+            console.warn('⚠️ currentSiteId not found');
+        }
+
         const lastThreadId = localStorage.getItem('lastThreadId');
+
         if (lastThreadId && currentAgent) {
-            socket.emit('join-thread', parseInt(lastThreadId), currentAgent.id);
-            console.log('✅ Re-joined thread on reconnect:', lastThreadId);
+            socket.emit('join-thread', lastThreadId, currentAgent.id);
+            console.log('✅ Re-joined thread:', lastThreadId);
         }
     });
-    
-    // ========== FIXED: Force thread list update ==========
+
     socket.on('new-message', (msg) => {
-        console.log('🔴🔴🔴 NEW MESSAGE RECEIVED:', msg);
-        
-        // Prevent duplicate
-        if (displayedMessageIds.has(msg.id)) {
-            console.log('Duplicate ignored:', msg.id);
-            return;
-        }
+        console.log('🔴🔴🔴 NEW MESSAGE:', msg);
+
+        if (displayedMessageIds.has(msg.id)) return;
         displayedMessageIds.add(msg.id);
-        
-        // ✅ CRITICAL: Always reload threads for ANY message
-        console.log('🔄 Reloading threads...');
+
         loadThreads();
-        
-        // Play sound for visitor messages
+
         if (msg.sender === 'visitor') {
             playNotificationSound();
-            
-            // Increment unread count if not current thread
+
             if (currentThreadId !== msg.threadId) {
                 unreadCounts[msg.threadId] = (unreadCounts[msg.threadId] || 0) + 1;
-                console.log(`📊 Unread count for thread ${msg.threadId}: ${unreadCounts[msg.threadId]}`);
-                // Reload again to show badge
-                setTimeout(() => loadThreads(), 500);
             }
-            
-            // Show browser notification
+
             if (currentThreadId !== msg.threadId && Notification.permission === 'granted') {
-                new Notification('New Message', { body: msg.message.substring(0, 50) });
+                new Notification('New Message', {
+                    body: msg.message.substring(0, 50)
+                });
             }
         }
-        
-        // Add to chat if current thread
+
         if (currentThreadId === msg.threadId) {
             addMessageToChat(msg);
         }
     });
-    
+
+    socket.on('new-thread-message', (data) => {
+        console.log('📩 New thread message:', data);
+        loadThreads();
+    });
+
+    socket.on('new-thread', (thread) => {
+        console.log('🆕 New thread:', thread);
+        loadThreads();
+    });
+
+    socket.on('thread-updated', (thread) => {
+        console.log('🔄 Thread updated:', thread);
+        loadThreads();
+    });
+
     socket.on('visitor-typing', (data) => {
         if (data.isTyping && currentThreadId) {
             document.getElementById('chatHeaderStatus').innerHTML = '✏️ Visitor is typing...';
-            setTimeout(() => {
-                if (document.getElementById('chatHeaderStatus').innerHTML.includes('typing')) {
-                    document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
-                }
-            }, 2000);
         } else {
             document.getElementById('chatHeaderStatus').innerHTML = '💬 Active conversation';
         }
     });
-    
+
     socket.on('message-sent', (msg) => {
         console.log('✅ Message sent confirmation:', msg);
+
         if (currentThreadId === msg.threadId && !displayedMessageIds.has(msg.id)) {
             displayedMessageIds.add(msg.id);
             addMessageToChat(msg);
-            loadThreads();  // Update thread list
+            loadThreads();
         }
     });
 }
-                
+            
+            
+            
+            
+        
         async function loadThreads() {
     try {
-        console.log('🔄 Loading threads for site:', currentSiteId);
+        console.log('🔄 Loading threads for all sites...');
         
-        const res = await fetch(`${API_URL}/threads/site/${currentSiteId}`, {
+        // নতুন API কল (সব সাইটের থ্রেড)
+        const res = await fetch(`${API_URL}/threads/all`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        const threads = await res.json();
+        let threads = await res.json();
         
         const threadsList = document.getElementById('threadsList');
         const threadCount = document.getElementById('threadCount');
-        
-        // Store old threads for animation comparison
-        const oldThreads = JSON.parse(localStorage.getItem('threadsSnapshot') || '{}');
         
         threadCount.innerText = `${threads.length} threads`;
         
@@ -281,8 +314,16 @@
             return;
         }
         
+        // AUTO-JOIN all threads on load
+        if (socket && socket.connected) {
+            for (let thread of threads) {
+                socket.emit('join-thread', thread.id, currentAgent?.id);
+                console.log('✅ Auto-joined thread:', thread.id);
+            }
+        }
+        
         // Get last message for each thread
-        for (const thread of threads) {
+        for (let thread of threads) {
             try {
                 const msgRes = await fetch(`${API_URL}/threads/${thread.id}/messages`);
                 const messages = await msgRes.json();
@@ -307,29 +348,24 @@
         threads.sort((a, b) => new Date(b.lastMsgTime) - new Date(a.lastMsgTime));
         
         let html = '';
-        for (const thread of threads) {
+        for (let thread of threads) {
             const isActive = currentThreadId === thread.id;
             const unreadCount = unreadCounts[thread.id] || 0;
             
-            // Check if this thread has new message (for animation)
-            const oldThread = oldThreads[thread.id];
-            const hasNewMessage = oldThread && oldThread.lastMsgId !== thread.lastMsgId;
-            const animateClass = hasNewMessage ? 'thread-updating' : '';
-            
             html += `
-                <div id="thread-${thread.id}" class="thread-item p-3 rounded-xl ${isActive ? 'active' : 'hover:bg-gray-50'} ${animateClass}" onclick="selectThread(${thread.id})">
+                <div id="thread-${thread.id}" class="thread-item p-3 rounded-xl ${isActive ? 'active' : 'hover:bg-gray-50'}" onclick="selectThread(${thread.id})">
                     <div class="flex justify-between items-start">
                         <div class="flex-1">
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-user-circle text-gray-400"></i>
+                                <i class="fas fa-globe text-xs text-blue-500"></i>
                                 <span class="font-semibold text-gray-800">${escapeHtml(thread.visitorName || 'Guest')}</span>
                                 ${unreadCount > 0 ? `<span class="notification-badge">${unreadCount}</span>` : ''}
-                                ${hasNewMessage ? '<span class="thread-badge-new">● New</span>' : ''}
                             </div>
                             <p class="text-xs text-gray-500 mt-1">
                                 <i class="fas fa-clock mr-1"></i>${new Date(thread.lastMsgTime).toLocaleString()}
                             </p>
-                            <p id="last-msg-${thread.id}" class="text-sm text-gray-600 mt-1 truncate ${hasNewMessage ? 'last-msg-updated' : ''}">
+                            <p class="text-sm text-gray-600 mt-1 truncate">
                                 ${escapeHtml(thread.lastMsg.substring(0, 50))}
                             </p>
                         </div>
@@ -339,24 +375,7 @@
         }
         threadsList.innerHTML = html;
         
-        // Save current threads snapshot for next comparison
-        const snapshot = {};
-        threads.forEach(t => {
-            snapshot[t.id] = { lastMsgId: t.lastMsgId, lastMsg: t.lastMsg };
-        });
-        localStorage.setItem('threadsSnapshot', JSON.stringify(snapshot));
-        
-        // Remove animation class after animation ends
-        setTimeout(() => {
-            document.querySelectorAll('.thread-updating').forEach(el => {
-                el.classList.remove('thread-updating');
-            });
-            document.querySelectorAll('.last-msg-updated').forEach(el => {
-                el.classList.remove('last-msg-updated');
-            });
-        }, 500);
-        
-        console.log('✅ Thread list updated');
+        console.log(`✅ Loaded ${threads.length} threads`);
         
     } catch (err) { 
         console.error('Load threads error:', err); 
@@ -373,7 +392,6 @@
             document.getElementById('messageInput').disabled = false;
             document.getElementById('sendButton').disabled = false;
             
-            // ✅ Join the room
             if (socket && socket.connected) {
                 socket.emit('join-thread', threadId, currentAgent?.id);
                 console.log('✅ Joined room: thread-' + threadId);
@@ -390,8 +408,6 @@
                 
                 const chatMessages = document.getElementById('chatMessages');
                 chatMessages.innerHTML = '';
-                
-                // Clear displayed IDs for this thread
                 displayedMessageIds.clear();
                 
                 if (messages.length === 0) {
@@ -399,7 +415,6 @@
                 } else {
                     messages.forEach(msg => {
                         displayedMessageIds.add(msg.id);
-                        // ✅ এখানে সঠিক পজিশন নির্ধারণ হচ্ছে
                         addMessageToChat(msg);
                     });
                 }
@@ -414,8 +429,6 @@
             const message = messageInput.value.trim();
             if (!message || !currentThreadId || !socket) return;
             
-            // console.log('Sending support message:', message);
-            
             socket.emit('support-message', {
                 threadId: currentThreadId,
                 message: message,
@@ -429,7 +442,6 @@
             const chatMessages = document.getElementById('chatMessages');
             const isSentByMe = msg.sender === 'support' && msg.senderId === currentAgent?.id;
             
-            // Double check for duplicate
             if (document.getElementById(`msg-${msg.id}`)) return;
             
             const messageDiv = document.createElement('div');
@@ -469,14 +481,6 @@
             } catch(e) {}
         }
         
-        function showNotification(message) {
-            if (Notification.permission === 'granted') {
-                new Notification('Chat Support', { body: message });
-            } else if (Notification.permission !== 'denied') {
-                Notification.requestPermission();
-            }
-        }
-        
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
@@ -487,19 +491,7 @@
         function logout() {
             localStorage.removeItem('supportToken');
             localStorage.removeItem('agentName');
-            
-            if (socket) {
-                socket.disconnect();
-                socket = null;
-            }
-            
-            currentThreadId = null;
-            currentAgent = null;
-            currentSiteId = null;
-            displayedMessageIds.clear();
-            unreadCounts = {};
-            
-            // Reload the page to clear all state
+            if (socket) socket.disconnect();
             window.location.href = '/support-panel';
         }
         
@@ -508,37 +500,6 @@
                 sendMessage();
             }
         });
-
-        async function init() {
-            try {
-                const res = await fetch(`${API_URL}/users/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const user = await res.json();
-                currentSiteId = user.siteId;
-                currentAgent = { id: user.id, name: user.name };  // ← এখানে agent সেট হচ্ছে
-                
-                document.getElementById('agentName').innerText = currentAgent.name;
-                
-                connectSocket();
-                await loadAgentDetails();
-                
-                // পেজ রিলোডের পর থ্রেড রিস্টোর
-                const lastThreadId = localStorage.getItem('lastThreadId');
-                if (lastThreadId) {
-                    setTimeout(() => {
-                        selectThread(parseInt(lastThreadId));
-                    }, 1000);
-                }
-                
-            } catch(e) {
-                console.error(e);
-                localStorage.removeItem('supportToken');
-                login();
-            }
-        }
-
-        
         
         setTimeout(() => setupTypingListener(), 1000);
     </script>

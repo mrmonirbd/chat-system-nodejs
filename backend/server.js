@@ -281,10 +281,16 @@ app.post('/api/threads/create', async (req, res) => {
     const { siteId, visitorId, visitorName, visitorEmail } = req.body;
     
     let thread = await Thread.findOne({ where: { siteId, visitorId, status: ['open', 'pending'] } });
+    let isNewThread = false;
     
     if (!thread) {
       thread = await Thread.create({ siteId, visitorId, visitorName: visitorName || 'Guest', visitorEmail, status: 'pending', lastMessageAt: new Date() });
+      isNewThread = true;
       console.log('New thread created:', thread.id);
+    }
+
+    if (isNewThread) {
+      io.to(`site-${thread.siteId}`).emit('new-thread', thread);
     }
     
     res.json({ threadId: thread.id });
@@ -328,6 +334,29 @@ app.get('/widget.css', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/widget.css'));
 });
 
+
+// Get all threads for all sites of this support agent
+app.get('/api/threads/all', authMiddleware, async (req, res) => {
+    try {
+        const user = await User.findByPk(req.user.id);
+        if (user.role !== 'support') {
+            return res.status(403).json({ error: 'Support only' });
+        }
+        
+        // Get all threads from all sites assigned to this support agent
+        const threads = await Thread.findAll({
+            where: { 
+                siteId: user.siteId  // Agent only has access to their assigned site
+            },
+            order: [['lastMessageAt', 'DESC']]
+        });
+        
+        res.json(threads);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ========== SOCKET.IO (ONLY ONCE) ==========
 
 // ========== SOCKET.IO ==========
@@ -338,6 +367,10 @@ io.on('connection', (socket) => {
   socket.on('support-auth', (token) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.siteId) {
+        socket.join(`site-${decoded.siteId}`);
+        console.log(`Support joined site-${decoded.siteId}`);
+      }
       socket.supportUser = decoded;
       socket.join(`support-${decoded.id}`);
       console.log(`Support ${decoded.email} connected`);
@@ -406,6 +439,8 @@ socket.on('visitor-message', async (data) => {
             message: newMessage.message,
             createdAt: newMessage.createdAt
         };
+
+        const thread = await Thread.findByPk(threadIdNum);
         
         // Debug: Room clients before broadcast
         console.log(`📤 Emitting to room: thread-${threadIdNum}`);
@@ -414,6 +449,14 @@ socket.on('visitor-message', async (data) => {
         // Broadcast to ALL clients in this thread (visitor + support)
         io.to(`thread-${threadIdNum}`).emit('new-message', messageData);
         console.log(`✅ Broadcasted visitor message to thread ${threadIdNum}`);
+
+        if (thread) {
+          io.to(`site-${thread.siteId}`).emit('new-thread-message', {
+            threadId: threadIdNum,
+            message: messageData,
+            thread
+          });
+        }
         
     } catch (err) {
         console.error('Visitor message error:', err);

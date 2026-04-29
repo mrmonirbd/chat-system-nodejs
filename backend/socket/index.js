@@ -3,10 +3,6 @@ const Thread = require('../models/Thread');
 const jwt = require('jsonwebtoken');
 
 module.exports = (io) => {
-  // Store active connections
-  const supportRooms = new Map(); // supportId -> siteId
-  const visitorRooms = new Map(); // threadId -> socketId
-
   io.on('connection', (socket) => {
     console.log('New connection:', socket.id);
 
@@ -15,11 +11,24 @@ module.exports = (io) => {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         socket.supportUser = decoded;
+
         socket.join(`support-${decoded.id}`);
+
+        if (decoded.siteId) {
+          socket.join(`site-${decoded.siteId}`);
+          console.log(`Support joined site-${decoded.siteId}`);
+        }
+
         console.log(`Support ${decoded.email} connected`);
       } catch (err) {
         console.error('Invalid support token');
       }
+    });
+
+    // Support joins site room
+    socket.on('join-site', (siteId) => {
+      socket.join(`site-${siteId}`);
+      console.log(`✅ Socket ${socket.id} joined site-${siteId}`);
     });
 
     // Visitor joins their thread
@@ -27,74 +36,81 @@ module.exports = (io) => {
       socket.threadId = threadId;
       socket.visitorId = visitorId;
       socket.join(`thread-${threadId}`);
-      
-      // Send previous messages
+
       const messages = await Message.find({ threadId }).sort('createdAt');
       socket.emit('previous-messages', messages);
     });
 
     // New message from visitor
     socket.on('visitor-message', async (data) => {
-      const { threadId, message, visitorId, visitorName } = data;
-      
-      // Save message
+      const { threadId, message, visitorId } = data;
+
       const newMessage = new Message({
         threadId,
         sender: 'visitor',
         senderId: visitorId,
         message
       });
+
       await newMessage.save();
-      
-      // Update thread last message time
-      await Thread.findByIdAndUpdate(threadId, { lastMessageAt: new Date() });
-      
-      // Broadcast to support users of this site
-      const thread = await Thread.findById(threadId).populate('siteId');
-      io.to(`site-${thread.siteId._id}`).emit('new-thread-message', {
-        threadId,
-        message: newMessage,
-        thread
+
+      await Thread.findByIdAndUpdate(threadId, {
+        lastMessageAt: new Date()
       });
-      
-      // Also send back to visitor
+
+      const thread = await Thread.findById(threadId).populate('siteId');
+
+      if (thread && thread.siteId) {
+        io.to(`site-${thread.siteId._id}`).emit('new-thread-message', {
+          threadId,
+          message: newMessage,
+          thread
+        });
+
+        io.to(`site-${thread.siteId._id}`).emit('new-message', newMessage);
+      }
+
       io.to(`thread-${threadId}`).emit('new-message', newMessage);
     });
 
     // New message from support
     socket.on('support-message', async (data) => {
       const { threadId, message, supportId } = data;
-      
+
       const newMessage = new Message({
         threadId,
         sender: 'support',
         senderId: supportId,
         message
       });
+
       await newMessage.save();
-      
-      // Update thread
-      await Thread.findByIdAndUpdate(threadId, { lastMessageAt: new Date() });
-      
-      // Send to visitor
+
+      await Thread.findByIdAndUpdate(threadId, {
+        lastMessageAt: new Date()
+      });
+
       io.to(`thread-${threadId}`).emit('new-message', newMessage);
-      
-      // Also send back to support panel
+
       socket.emit('message-sent', newMessage);
     });
 
     // Support picks a thread
     socket.on('pick-thread', async (threadId) => {
       if (!socket.supportUser) return;
-      
+
       await Thread.findByIdAndUpdate(threadId, {
         assignedTo: socket.supportUser.id,
         status: 'open'
       });
-      
+
       const thread = await Thread.findById(threadId).populate('siteId');
+
       io.to(`support-${socket.supportUser.id}`).emit('thread-assigned', thread);
-      io.to(`site-${thread.siteId._id}`).emit('thread-updated', thread);
+
+      if (thread && thread.siteId) {
+        io.to(`site-${thread.siteId._id}`).emit('thread-updated', thread);
+      }
     });
 
     socket.on('disconnect', () => {
